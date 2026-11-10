@@ -16,6 +16,7 @@ declare global {
             client_id: string;
             callback: (response: GoogleCredentialResponse) => void;
             auto_select?: boolean;
+            hd?: string;
           }) => void;
           renderButton: (
             parent: HTMLElement,
@@ -151,6 +152,7 @@ export default function HomePage() {
       google.initialize({
         client_id: googleClientId,
         auto_select: false,
+        hd: "student.chula.ac.th",
         callback: (response) => signInRef.current(response.credential),
       });
       googleInitializedRef.current = true;
