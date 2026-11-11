@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
+import { DailyDeckInsightsPanel } from "@/components/daily-deck-insights";
 import { Button } from "@/components/ui/button";
 
 type SessionStatus = "checking" | "signed-out" | "signed-in";
@@ -192,7 +193,9 @@ export default function HomePage() {
   };
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-18">
+    <main
+      className={`mx-auto px-6 py-18 ${status === "signed-in" ? "max-w-5xl" : "max-w-xl"}`}
+    >
       {googleClientId ? (
         <Script
           src="https://accounts.google.com/gsi/client"
@@ -212,9 +215,7 @@ export default function HomePage() {
       {status === "signed-in" ? (
         <>
           <p className="mt-4 text-lg leading-normal">Signed in as {email}.</p>
-          <p className="mt-4 text-lg leading-normal">
-            Charts are not available yet.
-          </p>
+          <DailyDeckInsightsPanel />
           <Button
             className="mt-6"
             variant="outline"

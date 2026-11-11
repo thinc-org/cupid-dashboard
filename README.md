@@ -2,7 +2,7 @@
 
 Staff dashboard for CUpid, built with Next.js, with Google sign-in and email-based access control.
 
-This repository contains the dashboard web app and its server-side authentication. Google sign-in, the email allowlist, and staff sessions run in Next.js on Vercel. Login does not call or change the production backend in [thinc-org/cupid-2.0](https://github.com/thinc-org/cupid-2.0). Charts and product-data APIs are not implemented yet.
+This repository contains the dashboard web app and its server-side authentication. Google sign-in, the email allowlist, and staff sessions run in Next.js on Vercel. Login does not call product sign-in in [thinc-org/cupid-2.0](https://github.com/thinc-org/cupid-2.0). Daily-deck charts call the backend's read-only insights API.
 
 ## Local development
 
@@ -24,6 +24,7 @@ Configure the public Google client ID and two server-only values:
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
 STAFF_EMAILS=alice@gmail.com,bob@example.com
 STAFF_SESSION_SECRET=REPLACE_WITH_A_RANDOM_SECRET
+CUPID_API_URL=http://localhost:3000
 ```
 
 Generate a dedicated session secret of at least 32 bytes:
@@ -40,7 +41,7 @@ In Google Cloud, add `http://localhost` and `http://localhost:8082` to the web c
 pnpm dev
 ```
 
-Open [http://localhost:8082](http://localhost:8082). Restart Next.js after changing environment variables. A CUpid backend or database is not required to test dashboard login.
+Open [http://localhost:8082](http://localhost:8082). Restart Next.js after changing environment variables. A CUpid backend is not required to test dashboard login. Daily-deck charts need the backend insights API, with `BACKEND_STAFF_SESSION_SECRET` and `BACKEND_STAFF_EMAILS` set to the same values as this app.
 
 ## Authentication
 
@@ -73,4 +74,10 @@ Set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `STAFF_EMAILS`, and `STAFF_SESSION_SECRET` f
 
 Only `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is exposed to the browser. Keep `STAFF_EMAILS` and `STAFF_SESSION_SECRET` in Vercel's server environment. Do not copy CUpid's JWT key or database credentials into this project. Local `.env` files, dependencies, and build output are ignored by Git.
 
-Future product-data APIs must enforce staff authorization at the server that serves that data. A successful dashboard login alone does not authorize calls to CUpid's existing product API. Any new data integration needs its own explicit access boundary.
+Daily-deck charts request `GET /api/insights/daily-decks` on this app. The route checks the staff session, then calls `GET /insights/daily-decks` on `CUPID_API_URL` with that session. The backend checks the same secret and allowlist. The response is counts and rates for a date range. Days with fewer than five decks are omitted. Candidate ids are not returned. Profile filters are faculty, year, gender, relationship goal, onboarded or not, paused or active, and one interest tag. They describe the person who received the deck.
+
+For local charts, set `CUPID_API_URL=http://localhost:3000` in the dashboard environment and run the CUpid backend on port 3000. The backend needs `BACKEND_STAFF_SESSION_SECRET` equal to the dashboard's `STAFF_SESSION_SECRET`, and `BACKEND_STAFF_EMAILS` equal to `STAFF_EMAILS`. Restart both servers after changing these values; on Vercel or Deploys, redeploy the affected service. A proxy base path such as `https://example.com/api` is supported and preserved.
+
+A 503 with `code: INSIGHTS_NOT_CONFIGURED` means the dashboard URL or backend insights configuration is missing or invalid; local responses and server logs identify the setting to check. Connection failures return 502 and timeouts return 504. Backend authorization/configuration failures keep an otherwise valid dashboard session, so correcting backend settings does not require signing in repeatedly.
+
+A successful dashboard login does not authorize calls to CUpid's product API. The staff session is rejected by product routes such as `GET /users/me`.
