@@ -1,3 +1,11 @@
+import {
+  GENDER_OPTIONS,
+  ONBOARDED_OPTIONS,
+  PAUSED_OPTIONS,
+  RELATIONSHIP_GOAL_OPTIONS,
+  YEAR_OPTIONS,
+} from "./enums";
+
 export type InsightsFilters = {
   from: string;
   to: string;
@@ -13,18 +21,13 @@ export type InsightsFilters = {
 export type DatePreset = "7d" | "14d" | "30d" | "semester";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-const validYears = new Set(["1", "2", "3", "4", "5", "6"]);
-const validGenders = new Set(["female", "male", "non-binary", "other"]);
-const validRelationshipGoals = new Set([
-  "long-term-partner",
-  "long-term-but-casual-ok",
-  "casual-but-long-term-ok",
-  "casual-fun",
-  "new-friends",
-  "still-figuring-it-out",
-]);
-const validOnboarded = new Set(["onboarded", "not-onboarded"]);
-const validPaused = new Set(["paused", "active"]);
+const validYears = new Set(YEAR_OPTIONS.map(([value]) => value));
+const validGenders = new Set(GENDER_OPTIONS.map(([value]) => value));
+const validRelationshipGoals = new Set(
+  RELATIONSHIP_GOAL_OPTIONS.map(([value]) => value),
+);
+const validOnboarded = new Set(ONBOARDED_OPTIONS.map(([value]) => value));
+const validPaused = new Set(PAUSED_OPTIONS.map(([value]) => value));
 
 export function parseInsightsFilterQuery(
   params: URLSearchParams,

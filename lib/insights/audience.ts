@@ -175,17 +175,20 @@ function readTotals(
   if (typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
 
-  const users = readOptionalMinCount(obj.users, minimumBucket);
-  if (users === undefined) return null;
+  const rawUsers = readOptionalMinCount(obj.users, minimumBucket);
+  if (rawUsers === undefined) return null;
   const previousUsers = readOptionalMinCount(obj.previousUsers, minimumBucket);
   if (previousUsers === undefined) return null;
 
+  // When the onboarded/not-onboarded split is suppressed (<5 on either side),
+  // hide total user count as well so differencing against onboarded-only filters
+  // cannot expose the small incomplete-onboarding cohort.
+  const users = onboardedStatus
+    ? (rawUsers ?? onboardedStatus.onboarded + onboardedStatus.notOnboarded)
+    : null;
+
   return {
-    users:
-      users ??
-      (onboardedStatus
-        ? onboardedStatus.onboarded + onboardedStatus.notOnboarded
-        : null),
+    users,
     previousUsers,
   };
 }

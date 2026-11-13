@@ -116,6 +116,14 @@ test("date presets calculate Bangkok windows within 366 days", () => {
     from: "2026-08-01",
     to: "2026-11-14",
   });
+  assert.deepEqual(buildPresetRange("semester", "2026-03-15"), {
+    from: "2026-01-01",
+    to: "2026-03-15",
+  });
+  assert.deepEqual(buildPresetRange("semester", "2026-06-20"), {
+    from: "2026-06-01",
+    to: "2026-06-20",
+  });
 });
 
 test("audience insights enforce minimumBucket >= 5 and roll small buckets into other", () => {
@@ -170,8 +178,9 @@ test("audience insights enforce minimumBucket >= 5 and roll small buckets into o
   // Daily points < 5 dropped and sorted chronologically
   assert.deepEqual(parsed.signupsPerDay, [{ date: "2026-11-01", count: 8 }]);
   assert.deepEqual(parsed.onboardedPerDay, [{ date: "2026-11-02", count: 6 }]);
-  // Binary cards hidden when either side < 5
+  // Binary cards hidden when either side < 5; totals.users suppressed to prevent differencing leaks
   assert.equal(parsed.onboardedStatus, null);
+  assert.equal(parsed.totals.users, null);
   assert.equal(parsed.pausedStatus, null);
   // Faculty 3 + 2 = 5 -> rolled into "other"
   assert.deepEqual(parsed.faculty, [
