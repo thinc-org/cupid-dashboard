@@ -240,65 +240,33 @@ export function AudiencePanel({
           description="Compares daily signups and completed onboarding."
           empty={dailyDates.length === 0}
         >
-          <div className="space-y-4">
-            <VerticalBarChart
-              title="Signups vs onboarded accounts per day"
-              highlightPeak
-              categories={dailyDates.map((date) => ({
-                key: date,
-                label: date,
-                shortLabel: date.slice(5),
-              }))}
-              series={[
-                {
-                  label: "Signups",
-                  colorClass: "bg-[#fb7185]",
-                  getColorClass: (_key, isPeak) =>
-                    isPeak ? "bg-[#f43f5e] ring-2 ring-pink-300" : "bg-[#fb7185]",
-                  getValue: (date) => signupMap.get(date) ?? 0,
-                },
-                {
-                  label: "Onboarded",
-                  colorClass: "bg-[#fbcfe8] border border-[#f9a8d4]/70",
-                  getColorClass: (_key, isPeak) =>
-                    isPeak
-                      ? "bg-[#f9a8d4] border border-[#f472b6]"
-                      : "bg-[#fbcfe8] border border-[#f9a8d4]/70",
-                  getValue: (date) => onboardedMap.get(date) ?? 0,
-                },
-              ]}
-            />
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[26rem] text-left text-xs">
-                <thead>
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="py-2 pr-3 font-medium">Date</th>
-                    <th className="py-2 pr-3 font-medium">Signups</th>
-                    <th className="py-2 font-medium">Onboarded</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60 tabular-nums">
-                  {dailyDates.map((date) => (
-                    <tr key={date}>
-                      <td className="py-1.5 pr-3 font-medium text-foreground">
-                        {date}
-                      </td>
-                      <td className="py-1.5 pr-3">
-                        {signupMap.has(date)
-                          ? formatCount(signupMap.get(date) ?? 0)
-                          : "<5 (hidden)"}
-                      </td>
-                      <td className="py-1.5">
-                        {onboardedMap.has(date)
-                          ? formatCount(onboardedMap.get(date) ?? 0)
-                          : "<5 (hidden)"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <VerticalBarChart
+            title="Signups vs onboarded accounts per day"
+            highlightPeak
+            categories={dailyDates.map((date) => ({
+              key: date,
+              label: date,
+              shortLabel: date.slice(5),
+            }))}
+            series={[
+              {
+                label: "Signups",
+                colorClass: "bg-[#fb7185]",
+                getColorClass: (_key, isPeak) =>
+                  isPeak ? "bg-[#f43f5e] ring-2 ring-pink-300" : "bg-[#fb7185]",
+                getValue: (date) => signupMap.get(date) ?? 0,
+              },
+              {
+                label: "Onboarded",
+                colorClass: "bg-[#fbcfe8] border border-[#f9a8d4]/70",
+                getColorClass: (_key, isPeak) =>
+                  isPeak
+                    ? "bg-[#f9a8d4] border border-[#f472b6]"
+                    : "bg-[#fbcfe8] border border-[#f9a8d4]/70",
+                getValue: (date) => onboardedMap.get(date) ?? 0,
+              },
+            ]}
+          />
         </ChartCard>
 
         <ChartCard
