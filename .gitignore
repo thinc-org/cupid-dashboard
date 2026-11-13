@@ -12,3 +12,6 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+GEMINI.md
+OVERVIEW_PROJECT.md
+docs/
