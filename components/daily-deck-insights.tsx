@@ -83,9 +83,7 @@ export function DailyDeckInsightsPanel({
   return (
     <div className="space-y-6">
       <p className="text-xs text-muted-foreground">
-        Counts describe the person who received the deck. Days with fewer than{" "}
-        {insights.minimumBucket} decks are hidden. Pass and like are not shown
-        separately.
+        Metrics reflect deck recipients per day.
       </p>
 
       <div className="grid items-start gap-6 lg:grid-cols-2">

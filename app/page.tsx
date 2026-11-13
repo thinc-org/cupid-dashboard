@@ -214,7 +214,6 @@ export default function HomePage() {
         <div>
           <div className="flex items-center gap-2">
             <Badge variant="soft">CUpid Staff Analytics</Badge>
-            <Badge variant="outline">k ≥ 5 aggregate-only</Badge>
           </div>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Insights Dashboard

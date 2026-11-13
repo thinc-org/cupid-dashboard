@@ -187,7 +187,7 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-12"
           title="Signups vs onboarded accounts per day"
-          description="Compares daily registrations (users.created_at) and completed profiles (profiles.created_at). Days with fewer than 5 are omitted."
+          description="Compares daily signups and completed onboarding."
           empty={dailyDates.length === 0}
         >
           <div className="space-y-4">
@@ -247,7 +247,6 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-6"
           title="Onboarded vs not onboarded"
-          description="Current conversion split for the selected filter."
           empty={!insights.onboardedStatus}
           emptyMessage="Hidden because either onboarded or incomplete count is under 5."
         >
@@ -276,7 +275,7 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-6"
           title="Paused vs active accounts"
-          description="Current account state from paused_at (not pause history)."
+          description="Current account status."
           empty={!insights.pausedStatus}
           emptyMessage="Hidden because either active or paused count is under 5."
         >
@@ -308,7 +307,6 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-6"
           title="Academic standing (Year)"
-          description="Distribution across study years 1 to 6."
           empty={insights.year.length === 0}
         >
           <VerticalBarChart
@@ -322,7 +320,7 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-6"
           title="Age distribution bands"
-          description="Computed dynamically into cohort bands from date_of_birth (birth dates are never returned)."
+          description="Grouped into age ranges."
           headerAction={
             insights.ageBands.medianAge !== null ? (
               <Badge variant="soft" className="tabular-nums">
@@ -343,7 +341,6 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-6"
           title="Gender identity breakdown"
-          description="Self-declared gender pool balance."
           empty={insights.gender.length === 0}
         >
           <SegmentedBar items={toLabeled("gender", insights.gender)} />
@@ -352,7 +349,7 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-6"
           title="Top interest tags"
-          description="Multi-value frequency; each person counts once per selected interest tag."
+          description="Counts each selected interest per person."
           empty={insights.interestTags.length === 0}
         >
           <TagPills items={toLabeled("interest", insights.interestTags)} />
@@ -361,7 +358,6 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-6"
           title="Relationship goals & intent"
-          description="Ranked intent configured during onboarding."
           empty={insights.relationshipGoal.length === 0}
         >
           <HorizontalBarList
@@ -372,7 +368,7 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-6"
           title="Core value alignment"
-          description="Multi-select value tags; a person with multiple values counts once per tag."
+          description="Counts each selected value per person."
           empty={insights.valueTags.length === 0}
         >
           <HorizontalBarList
@@ -384,7 +380,6 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-12"
           title="Faculty breakdown"
-          description="Headcount per campus faculty; faculties with fewer than 5 accounts roll into Other."
           empty={insights.faculty.length === 0}
         >
           <HorizontalBarList items={toLabeled("faculty", insights.faculty)} />
@@ -395,16 +390,11 @@ export function AudiencePanel({
       <section className="space-y-3">
         <div>
           <h3 className="text-lg font-semibold text-foreground">
-            Match filter preferences (
-            <code className="rounded bg-secondary px-1.5 py-0.5 text-sm font-medium">
-              filter_preferences
-            </code>
-            )
+            Match filter preferences
           </h3>
           <p className="text-xs text-muted-foreground">
-            One count per selected faculty, year, gender interest, and
-            relationship goal. Empty preference lists are counted separately as
-            &ldquo;No restrictions (Open Deck)&rdquo;.
+            Counts each preference selected; empty lists appear as &ldquo;No
+            restrictions (Open Deck)&rdquo;.
           </p>
         </div>
         <div className="grid items-start gap-6 md:grid-cols-2">

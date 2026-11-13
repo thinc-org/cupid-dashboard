@@ -89,11 +89,7 @@ export function GlobalFilterBar({
                 Cohort &amp; Dimension Filters
               </h2>
               <p className="text-xs text-muted-foreground">
-                Date range applies across all charts (
-                <code className="rounded bg-secondary px-1 py-0.5 text-[11px]">
-                  users.created_at
-                </code>{" "}
-                for audience). Buckets under 5 are hidden or rolled into Other.
+                Applies across all audience and daily deck charts.
               </p>
             </div>
           </div>
