@@ -29,8 +29,8 @@ export function ChartCard({
 }: ChartCardProps) {
   return (
     <Card className={cn("flex flex-col", className)}>
-      <CardHeader className="flex-row items-start justify-between gap-3">
-        <div className="space-y-1">
+      <CardHeader className="flex-row items-start justify-between gap-3 border-b border-pink-50 pb-3">
+        <div className="space-y-0.5">
           <CardTitle>{title}</CardTitle>
           {description ? (
             <CardDescription>{description}</CardDescription>

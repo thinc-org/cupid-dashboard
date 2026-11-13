@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { formatCount } from "../formatters";
 import type { LabeledBucket } from "./horizontal-bar-list";
 
@@ -7,30 +6,24 @@ type TagPillsProps = {
 };
 
 export function TagPills({ items }: TagPillsProps) {
-  const peak = Math.max(...items.map((item) => item.count), 1);
-
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => {
-        const isTop = item.count >= peak * 0.65 && item.key !== "other";
         const isOther = item.key === "other";
         return (
-          <Badge
+          <span
             key={item.key}
-            variant={isOther ? "muted" : isTop ? "default" : "soft"}
-            className="gap-2 px-3 py-1.5 text-xs"
+            className={
+              isOther
+                ? "inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600"
+                : "inline-flex items-center gap-2 rounded-lg border border-pink-200 bg-pink-50/80 px-2.5 py-1 text-xs font-semibold text-[#db2777]"
+            }
           >
             <span>{item.label}</span>
-            <span
-              className={
-                isTop && !isOther
-                  ? "rounded-full bg-white/20 px-1.5 py-0.5 text-[11px] font-bold tabular-nums"
-                  : "rounded-full bg-background/80 px-1.5 py-0.5 text-[11px] font-semibold text-foreground tabular-nums"
-              }
-            >
+            <span className="rounded-md bg-white px-1.5 py-0.5 text-[11px] font-bold text-slate-800 shadow-2xs tabular-nums">
               {formatCount(item.count)}
             </span>
-          </Badge>
+          </span>
         );
       })}
     </div>

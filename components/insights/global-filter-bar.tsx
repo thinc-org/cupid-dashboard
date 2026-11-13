@@ -79,21 +79,17 @@ export function GlobalFilterBar({
   return (
     <Card>
       <CardContent className="space-y-4 pt-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col justify-between gap-2 border-b border-pink-50 pb-3 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-secondary text-primary">
-              <Filter className="size-3.5" aria-hidden="true" />
-            </span>
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                Cohort &amp; Dimension Filters
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Applies across all audience and daily deck charts.
-              </p>
-            </div>
+            <Filter className="size-4 text-[#fb7185]" aria-hidden="true" />
+            <h2 className="text-sm font-bold tracking-wide text-slate-800 uppercase">
+              Filter Dimensions
+            </h2>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600">
+            <span className="mr-1 hidden text-[11px] text-slate-400 md:inline">
+              Quick Presets:
+            </span>
             {datePresets.map((preset) => {
               const range = buildPresetRange(preset.id, today);
               const isCurrent =
@@ -103,7 +99,7 @@ export function GlobalFilterBar({
                   key={preset.id}
                   type="button"
                   size="xs"
-                  variant={isCurrent ? "default" : "outline"}
+                  variant={isCurrent ? "gradient" : "secondary"}
                   disabled={loading}
                   onClick={() => applyPreset(preset.id)}
                 >
@@ -115,7 +111,7 @@ export function GlobalFilterBar({
               <Button
                 type="button"
                 size="xs"
-                variant={useDevMock ? "secondary" : "outline"}
+                variant={useDevMock ? "gradient" : "outline"}
                 onClick={() => onToggleDevMock(!useDevMock)}
                 title="Local development preview using synthetic aggregate counts"
               >
@@ -127,119 +123,134 @@ export function GlobalFilterBar({
         </div>
 
         <form
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+          className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
             onApply(draft);
           }}
         >
-          <DateInput
-            label="From"
-            value={draft.from}
-            onChange={(value) => setDraft({ ...draft, from: value })}
-          />
-          <DateInput
-            label="To"
-            value={draft.to}
-            onChange={(value) => setDraft({ ...draft, to: value })}
-          />
-          <SelectField
-            label="Faculty"
-            value={draft.faculty}
-            options={FACULTY_OPTIONS}
-            onChange={(value) => setDraft({ ...draft, faculty: value })}
-          />
-          <SelectField
-            label="Academic year"
-            value={draft.year}
-            options={YEAR_OPTIONS}
-            onChange={(value) => setDraft({ ...draft, year: value })}
-          />
-          <SelectField
-            label="Gender"
-            value={draft.gender}
-            options={GENDER_OPTIONS}
-            onChange={(value) => setDraft({ ...draft, gender: value })}
-          />
-          <SelectField
-            label="Relationship goal"
-            value={draft.relationshipGoal}
-            options={RELATIONSHIP_GOAL_OPTIONS}
-            onChange={(value) =>
-              setDraft({ ...draft, relationshipGoal: value })
-            }
-          />
-          <SelectField
-            label="Onboarding"
-            value={draft.onboarded}
-            options={ONBOARDED_OPTIONS}
-            onChange={(value) => setDraft({ ...draft, onboarded: value })}
-          />
-          <SelectField
-            label="Account state"
-            value={draft.paused}
-            options={PAUSED_OPTIONS}
-            onChange={(value) => setDraft({ ...draft, paused: value })}
-          />
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
-            Interest tag
-            <input
-              list="cupid-interest-options"
-              className="h-9 rounded-lg border border-input bg-background px-2.5 text-sm font-normal text-foreground placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
-              value={draft.interest}
-              placeholder="e.g. food-coffee"
-              onChange={(event) =>
-                setDraft({ ...draft, interest: event.target.value })
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <DateInput
+              label="From"
+              value={draft.from}
+              onChange={(value) => setDraft({ ...draft, from: value })}
+            />
+            <DateInput
+              label="To"
+              value={draft.to}
+              onChange={(value) => setDraft({ ...draft, to: value })}
+            />
+            <SelectField
+              label="Faculty"
+              value={draft.faculty}
+              options={FACULTY_OPTIONS}
+              onChange={(value) => setDraft({ ...draft, faculty: value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <SelectField
+              label="Year"
+              value={draft.year}
+              options={YEAR_OPTIONS}
+              onChange={(value) => setDraft({ ...draft, year: value })}
+            />
+            <SelectField
+              label="Gender"
+              value={draft.gender}
+              options={GENDER_OPTIONS}
+              onChange={(value) => setDraft({ ...draft, gender: value })}
+            />
+            <SelectField
+              label="Relationship Goal"
+              value={draft.relationshipGoal}
+              options={RELATIONSHIP_GOAL_OPTIONS}
+              onChange={(value) =>
+                setDraft({ ...draft, relationshipGoal: value })
               }
             />
-            <datalist id="cupid-interest-options">
-              {INTEREST_OPTIONS.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </datalist>
-          </label>
-          <div className="flex items-end gap-2">
-            <Button type="submit" size="lg" className="flex-1" disabled={loading}>
-              {loading ? "Loading…" : "Apply filters"}
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              variant="outline"
-              disabled={loading}
-              onClick={handleReset}
-              title="Reset all filters"
-            >
-              <RotateCcw className="size-3.5" aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only">Reset</span>
-            </Button>
+            <SelectField
+              label="Onboarding"
+              value={draft.onboarded}
+              options={ONBOARDED_OPTIONS}
+              onChange={(value) => setDraft({ ...draft, onboarded: value })}
+            />
+            <SelectField
+              label="Account"
+              value={draft.paused}
+              options={PAUSED_OPTIONS}
+              onChange={(value) => setDraft({ ...draft, paused: value })}
+            />
+            <label className="grid gap-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
+              Interest tag
+              <input
+                list="cupid-interest-options"
+                className="h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium normal-case text-slate-800 placeholder:text-slate-400 focus-visible:border-[#fb7185] focus-visible:ring-2 focus-visible:ring-[#fb7185]/20 focus-visible:outline-none"
+                value={draft.interest}
+                placeholder="e.g. food-coffee"
+                onChange={(event) =>
+                  setDraft({ ...draft, interest: event.target.value })
+                }
+              />
+              <datalist id="cupid-interest-options">
+                {INTEREST_OPTIONS.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </datalist>
+            </label>
+          </div>
+
+          <div className="flex flex-col justify-between gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {activeChips.length > 0 ? (
+                <>
+                  <span className="mr-1 text-[11px] font-semibold text-slate-400">
+                    Active:
+                  </span>
+                  {activeChips.map((chip) => (
+                    <Badge key={chip.key} variant="soft" className="pr-1.5">
+                      <span>
+                        {chip.name}: {chip.label}
+                      </span>
+                      <button
+                        type="button"
+                        className="ml-0.5 inline-flex size-4 items-center justify-center rounded-full text-[#fb7185] hover:bg-pink-100 hover:text-[#db2777]"
+                        onClick={() => removeChip(chip.key)}
+                        aria-label={`Remove ${chip.name} filter`}
+                      >
+                        <X className="size-3" aria-hidden="true" />
+                      </button>
+                    </Badge>
+                  ))}
+                </>
+              ) : null}
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                size="lg"
+                variant="ghost"
+                disabled={loading}
+                onClick={handleReset}
+                title="Reset all filters"
+              >
+                <RotateCcw className="size-3.5" aria-hidden="true" />
+                Reset filters
+              </Button>
+              <Button
+                type="submit"
+                size="lg"
+                variant="gradient"
+                disabled={loading}
+              >
+                {loading ? "Updating…" : "Apply filters"}
+              </Button>
+            </div>
           </div>
         </form>
-
-        {activeChips.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            <span className="text-xs font-medium text-muted-foreground">
-              Active filters:
-            </span>
-            {activeChips.map((chip) => (
-              <Badge key={chip.key} variant="soft" className="pr-1.5">
-                <span>
-                  {chip.name}: {chip.label}
-                </span>
-                <button
-                  type="button"
-                  className="ml-0.5 inline-flex size-4 items-center justify-center rounded-full hover:bg-primary/15"
-                  onClick={() => removeChip(chip.key)}
-                  aria-label={`Remove ${chip.name} filter`}
-                >
-                  <X className="size-3" aria-hidden="true" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );
@@ -255,11 +266,11 @@ function DateInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+    <label className="grid gap-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
       {label}
       <input
         type="date"
-        className="h-9 rounded-lg border border-input bg-background px-2.5 text-sm font-normal text-foreground tabular-nums focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
+        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold normal-case text-slate-800 tabular-nums focus-visible:border-[#fb7185] focus-visible:ring-2 focus-visible:ring-[#fb7185]/20 focus-visible:outline-none"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -279,10 +290,10 @@ function SelectField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+    <label className="grid gap-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
       {label}
       <select
-        className="h-9 rounded-lg border border-input bg-background px-2.5 text-sm font-normal text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
+        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold normal-case text-slate-800 focus-visible:border-[#fb7185] focus-visible:ring-2 focus-visible:ring-[#fb7185]/20 focus-visible:outline-none"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >

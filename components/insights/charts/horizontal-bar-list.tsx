@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { formatCount, formatPercent } from "../formatters";
 
 export type LabeledBucket = {
@@ -5,6 +6,14 @@ export type LabeledBucket = {
   label: string;
   count: number;
 };
+
+const barShades = [
+  "bg-[#f472b6]",
+  "bg-[#fb7185]",
+  "bg-[#f9a8d4]",
+  "bg-[#fbcfe8]",
+  "bg-[#fce7f3] border border-[#fbcfe8]",
+];
 
 type HorizontalBarListProps = {
   items: LabeledBucket[];
@@ -26,31 +35,41 @@ export function HorizontalBarList({
       {items.map((item, index) => {
         const widthPercent = Math.max((item.count / peak) * 100, 4);
         const isOther = item.key === "other";
+        const barColor = isOther
+          ? "bg-slate-300"
+          : barShades[index % barShades.length];
+
         return (
-          <li key={item.key} className="space-y-1.5">
-            <div className="flex items-baseline justify-between gap-2 text-sm">
-              <span className="truncate font-medium text-foreground">
-                {ranked ? (
-                  <span className="mr-2 text-xs text-muted-foreground tabular-nums">
+          <li key={item.key} className="space-y-1">
+            <div className="flex items-baseline justify-between gap-2 text-xs">
+              <span
+                className={cn(
+                  "truncate font-medium",
+                  isOther ? "italic text-slate-500" : "text-slate-700",
+                )}
+              >
+                {ranked && !isOther ? (
+                  <span className="mr-1.5 text-[11px] font-semibold text-slate-400 tabular-nums">
                     #{index + 1}
                   </span>
                 ) : null}
                 {item.label}
               </span>
-              <span className="shrink-0 text-xs font-semibold text-foreground tabular-nums">
+              <span className="shrink-0 font-bold text-slate-900 tabular-nums">
                 {formatCount(item.count)}{" "}
-                <span className="font-normal text-muted-foreground">
+                <span className="font-normal text-slate-400">
                   ({formatPercent(item.count, total)})
                 </span>
               </span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+            <div
+              className={cn(
+                "h-2 w-full overflow-hidden rounded-full",
+                isOther ? "bg-slate-100" : "bg-pink-50",
+              )}
+            >
               <div
-                className={
-                  isOther
-                    ? "h-full rounded-full bg-muted-foreground/45 transition-all"
-                    : "h-full rounded-full bg-gradient-to-r from-[#fb7185] to-[#f43f5e] transition-all"
-                }
+                className={cn("h-full rounded-full transition-all", barColor)}
                 style={{ width: `${widthPercent}%` }}
               />
             </div>

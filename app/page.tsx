@@ -1,9 +1,9 @@
 "use client";
 
+import { BadgeCheck, Heart } from "lucide-react";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { InsightsDashboard } from "@/components/insights/insights-dashboard";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -194,10 +194,10 @@ export default function HomePage() {
     }
   };
 
+  const initialLetter = email.trim().charAt(0).toUpperCase() || "S";
+
   return (
-    <main
-      className={`mx-auto px-6 py-10 ${status === "signed-in" ? "max-w-7xl" : "max-w-xl py-20"}`}
-    >
+    <div className="flex min-h-screen flex-col">
       {googleClientId ? (
         <Script
           src="https://accounts.google.com/gsi/client"
@@ -210,81 +210,98 @@ export default function HomePage() {
         />
       ) : null}
 
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Badge variant="soft">CUpid Staff Analytics</Badge>
+      <header className="sticky top-0 z-40 border-b border-pink-100/80 bg-white/90 px-4 py-3.5 backdrop-blur-md sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3.5">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#fb7185] to-[#f472b6] shadow-md shadow-pink-300/30">
+              <Heart className="size-5 fill-white text-white" aria-hidden="true" />
+            </div>
+            <div>
+              <span className="block text-xs font-black tracking-widest text-[#f472b6] uppercase">
+                Cupid Dashboard
+              </span>
+              <h1 className="text-xl leading-tight font-bold tracking-tight text-slate-900">
+                Insights &amp; Analytics
+              </h1>
+            </div>
           </div>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Insights Dashboard
-          </h1>
-        </div>
 
-        {status === "signed-in" ? (
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2 shadow-[0_1px_2px_rgba(244,63,94,0.05)]">
-            <span className="text-xs font-medium text-muted-foreground">
-              {email}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => void signOut()}
-            >
-              {busy ? "Signing out…" : "Sign out"}
-            </Button>
-          </div>
-        ) : null}
+          {status === "signed-in" ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-pink-100 bg-white px-3 py-1.5 shadow-xs">
+                <span className="flex size-5 items-center justify-center rounded-full bg-pink-100 text-xs font-bold text-[#db2777]">
+                  {initialLetter}
+                </span>
+                <span className="text-xs font-medium text-slate-700">
+                  {email}
+                </span>
+                <BadgeCheck className="size-3.5 text-blue-500" aria-hidden="true" />
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => void signOut()}
+              >
+                {busy ? "Signing out…" : "Sign out"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </header>
 
-      {status === "checking" ? (
-        <Card className="mt-8">
-          <CardContent className="pt-6 text-sm text-muted-foreground">
-            Checking your staff session…
-          </CardContent>
-        </Card>
-      ) : null}
+      <main
+        className={`mx-auto w-full flex-grow px-4 py-6 sm:px-8 ${status === "signed-in" ? "max-w-7xl" : "max-w-xl py-16"}`}
+      >
+        {status === "checking" ? (
+          <Card className="mt-4">
+            <CardContent className="pt-6 text-sm text-slate-500">
+              Checking your staff session…
+            </CardContent>
+          </Card>
+        ) : null}
 
-      {status === "signed-in" ? <InsightsDashboard /> : null}
+        {status === "signed-in" ? <InsightsDashboard /> : null}
 
-      {status === "signed-out" ? (
-        <Card className="mt-8">
-          <CardContent className="space-y-4 pt-6">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Staff sign-in
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Sign in with an allowlisted Google account to view aggregate
-                cohort and deck insights.
-              </p>
-            </div>
-            {googleClientId ? (
-              <div
-                ref={buttonRef}
-                className={busy ? "pointer-events-none opacity-50" : undefined}
-                aria-busy={busy}
-                inert={busy}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Google sign-in is not configured.
-              </p>
-            )}
-            {busy ? (
-              <p className="text-sm text-muted-foreground" role="status">
-                Signing in…
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
+        {status === "signed-out" ? (
+          <Card className="mt-4">
+            <CardContent className="space-y-4 pt-6">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Staff sign-in
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Sign in with an allowlisted Google account to view aggregate
+                  cohort and deck insights.
+                </p>
+              </div>
+              {googleClientId ? (
+                <div
+                  ref={buttonRef}
+                  className={busy ? "pointer-events-none opacity-50" : undefined}
+                  aria-busy={busy}
+                  inert={busy}
+                />
+              ) : (
+                <p className="text-sm text-slate-500">
+                  Google sign-in is not configured.
+                </p>
+              )}
+              {busy ? (
+                <p className="text-sm text-slate-500" role="status">
+                  Signing in…
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
 
-      {error ? (
-        <p className="mt-6 text-sm font-medium text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </main>
+        {error ? (
+          <p className="mt-6 text-sm font-medium text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </main>
+    </div>
   );
 }
