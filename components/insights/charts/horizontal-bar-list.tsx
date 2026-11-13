@@ -28,12 +28,14 @@ export function HorizontalBarList({
 }: HorizontalBarListProps) {
   const total =
     shareDenominator ?? items.reduce((sum, item) => sum + item.count, 0);
-  const peak = Math.max(...items.map((item) => item.count), 1);
 
   return (
     <ul className="space-y-3">
       {items.map((item, index) => {
-        const widthPercent = Math.max((item.count / peak) * 100, 4);
+        const widthPercent =
+          total > 0 && item.count > 0
+            ? Math.min(Math.max((item.count / total) * 100, 1.5), 100)
+            : 0;
         const isOther = item.key === "other";
         const barColor = isOther
           ? "bg-slate-300"
