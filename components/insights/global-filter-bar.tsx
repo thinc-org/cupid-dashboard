@@ -59,7 +59,7 @@ export function GlobalFilterBar({
 
   const applyPreset = (preset: DatePreset) => {
     const range = buildPresetRange(preset, today);
-    const next = { ...draft, ...range };
+    const next = { ...filters, ...range };
     setDraft(next);
     onApply(next);
   };

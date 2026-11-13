@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  readDailyDeckInsights,
-  type DailyDeckInsights,
-} from "@/lib/insights/daily-decks";
+import { readDailyDeckInsights } from "@/lib/insights/daily-decks";
 import {
   buildInsightsQueryString,
   defaultInsightsFilters,
   type InsightsFilters,
 } from "@/lib/insights/filters";
+import { useInsightsQuery } from "@/lib/insights/use-insights-query";
 import { ChartCard } from "./insights/chart-card";
 import { VerticalBarChart } from "./insights/charts/bar-chart";
 import { formatCount, formatDecimal } from "./insights/formatters";
@@ -25,9 +23,6 @@ export function DailyDeckInsightsPanel({
 }: DailyDeckInsightsPanelProps) {
   const [fallbackFilters, setFallbackFilters] =
     useState<InsightsFilters | null>(null);
-  const [insights, setInsights] = useState<DailyDeckInsights | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!externalFilters) {
@@ -36,66 +31,20 @@ export function DailyDeckInsightsPanel({
   }, [externalFilters]);
 
   const activeFilters = externalFilters ?? fallbackFilters;
+  const requestUrl = activeFilters
+    ? `/api/insights/daily-decks?${buildInsightsQueryString(activeFilters)}`
+    : null;
 
-  useEffect(() => {
-    if (!activeFilters) return;
-    let active = true;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
-    setLoading(true);
-    onLoadingChange?.(true);
-    setError("");
-    void (async () => {
-      try {
-        const response = await fetch(
-          `/api/insights/daily-decks?${buildInsightsQueryString(activeFilters)}`,
-          {
-            credentials: "same-origin",
-            signal: controller.signal,
-          },
-        );
-        const body = await response.json().catch(() => null);
-        if (!active) return;
-        if (!response.ok) {
-          setInsights(null);
-          setError(
-            typeof body?.message === "string"
-              ? body.message
-              : "Deck insights could not be loaded.",
-          );
-          return;
-        }
-        const parsed = readDailyDeckInsights(body);
-        if (!parsed) {
-          setInsights(null);
-          setError("Deck insights returned an unexpected response.");
-          return;
-        }
-        setInsights(parsed);
-      } catch {
-        if (active) {
-          setInsights(null);
-          setError(
-            controller.signal.aborted
-              ? "Deck insights took too long to load. Please try again."
-              : "Deck insights could not be reached.",
-          );
-        }
-      } finally {
-        clearTimeout(timeout);
-        if (active) {
-          setLoading(false);
-          onLoadingChange?.(false);
-        }
-      }
-    })();
-    return () => {
-      active = false;
-      clearTimeout(timeout);
-      controller.abort();
-      onLoadingChange?.(false);
-    };
-  }, [activeFilters, onLoadingChange]);
+  const {
+    data: insights,
+    error,
+    loading,
+  } = useInsightsQuery(
+    requestUrl,
+    readDailyDeckInsights,
+    { subject: "Deck insights" },
+    onLoadingChange,
+  );
 
   if (!activeFilters || loading) {
     return (
@@ -124,6 +73,11 @@ export function DailyDeckInsightsPanel({
   if (!insights) return null;
 
   const dates = insights.days.map((day) => day.date);
+  const categories = dates.map((date) => ({
+    key: date,
+    label: date,
+    shortLabel: date.slice(5),
+  }));
   const byDate = new Map(insights.days.map((day) => [day.date, day]));
 
   return (
@@ -134,52 +88,43 @@ export function DailyDeckInsightsPanel({
         separately.
       </p>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Decks generated"
-          empty={dates.length === 0}
-        >
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <ChartCard title="Decks generated" empty={dates.length === 0}>
           <VerticalBarChart
             title="Decks generated"
-            dates={dates}
+            categories={categories}
             series={[
               {
                 label: "Decks generated",
-                colorClass: "fill-[#f43f5e]",
+                colorClass: "bg-[#f43f5e]",
                 getValue: (date) => byDate.get(date)?.decksGenerated ?? 0,
               },
             ]}
           />
         </ChartCard>
 
-        <ChartCard
-          title="Total candidate slots"
-          empty={dates.length === 0}
-        >
+        <ChartCard title="Total candidate slots" empty={dates.length === 0}>
           <VerticalBarChart
             title="Total candidate slots"
-            dates={dates}
+            categories={categories}
             series={[
               {
                 label: "Candidate slots",
-                colorClass: "fill-[#fb7185]",
+                colorClass: "bg-[#fb7185]",
                 getValue: (date) => byDate.get(date)?.totalCandidateSlots ?? 0,
               },
             ]}
           />
         </ChartCard>
 
-        <ChartCard
-          title="Average deck size"
-          empty={dates.length === 0}
-        >
+        <ChartCard title="Average deck size" empty={dates.length === 0}>
           <VerticalBarChart
             title="Average deck size"
-            dates={dates}
+            categories={categories}
             series={[
               {
                 label: "Average size",
-                colorClass: "fill-[#f472b6]",
+                colorClass: "bg-[#f472b6]",
                 getValue: (date) => byDate.get(date)?.averageDeckSize ?? 0,
                 formatValue: formatDecimal,
               },
@@ -187,18 +132,37 @@ export function DailyDeckInsightsPanel({
           />
         </ChartCard>
 
-        <ChartCard
-          title="Completed decks & rate"
-          empty={dates.length === 0}
-        >
+        <ChartCard title="Completed decks" empty={dates.length === 0}>
           <VerticalBarChart
             title="Completed decks"
-            dates={dates}
+            categories={categories}
             series={[
               {
                 label: "Completed decks",
-                colorClass: "fill-[#f43f5e]",
+                colorClass: "bg-[#f43f5e]",
                 getValue: (date) => byDate.get(date)?.completedDecks ?? 0,
+              },
+            ]}
+          />
+        </ChartCard>
+
+        <ChartCard
+          className="lg:col-span-2"
+          title="Completion rate"
+          description="Share of generated decks fully reviewed each day."
+          empty={dates.length === 0}
+        >
+          <VerticalBarChart
+            title="Completion rate"
+            categories={categories}
+            maxValue={100}
+            series={[
+              {
+                label: "Completion rate",
+                colorClass: "bg-[#be185d]",
+                getValue: (date) =>
+                  (byDate.get(date)?.completionRate ?? 0) * 100,
+                formatValue: (value) => `${formatDecimal(value)}%`,
               },
             ]}
           />

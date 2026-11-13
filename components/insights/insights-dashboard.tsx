@@ -17,7 +17,9 @@ const isDev = process.env.NODE_ENV !== "production";
 export function InsightsDashboard() {
   const [filters, setFilters] = useState<InsightsFilters | null>(null);
   const [activeTab, setActiveTab] = useState<DashboardTab>("audience");
-  const [loading, setLoading] = useState(false);
+  const [visitedDailyDecks, setVisitedDailyDecks] = useState(false);
+  const [audienceLoading, setAudienceLoading] = useState(false);
+  const [decksLoading, setDecksLoading] = useState(false);
   const [useDevMock, setUseDevMock] = useState(false);
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export function InsightsDashboard() {
     <div className="mt-6 space-y-6">
       <GlobalFilterBar
         filters={filters}
-        loading={loading}
+        loading={audienceLoading || decksLoading}
         onApply={setFilters}
         showDevMockToggle={isDev && activeTab === "audience"}
         useDevMock={useDevMock}
@@ -60,26 +62,30 @@ export function InsightsDashboard() {
           aria-selected={activeTab === "daily-decks"}
           variant={activeTab === "daily-decks" ? "default" : "ghost"}
           size="sm"
-          onClick={() => setActiveTab("daily-decks")}
+          onClick={() => {
+            setActiveTab("daily-decks");
+            setVisitedDailyDecks(true);
+          }}
         >
           Daily decks
         </Button>
       </div>
 
-      <div role="tabpanel">
-        {activeTab === "audience" ? (
-          <AudiencePanel
-            filters={filters}
-            useDevMock={useDevMock}
-            onLoadingChange={setLoading}
-          />
-        ) : (
+      <div role="tabpanel" hidden={activeTab !== "audience"}>
+        <AudiencePanel
+          filters={filters}
+          useDevMock={useDevMock}
+          onLoadingChange={setAudienceLoading}
+        />
+      </div>
+      {visitedDailyDecks ? (
+        <div role="tabpanel" hidden={activeTab !== "daily-decks"}>
           <DailyDeckInsightsPanel
             filters={filters}
-            onLoadingChange={setLoading}
+            onLoadingChange={setDecksLoading}
           />
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

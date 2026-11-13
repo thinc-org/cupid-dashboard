@@ -1,11 +1,9 @@
 "use client";
 
 import { Activity, CheckCircle2, TrendingUp, Users } from "lucide-react";
-import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   readAudienceInsights,
-  type AudienceInsights,
   type BucketCount,
 } from "@/lib/insights/audience";
 import { formatInsightLabel, type LabelDimension } from "@/lib/insights/enums";
@@ -13,6 +11,7 @@ import {
   buildInsightsQueryString,
   type InsightsFilters,
 } from "@/lib/insights/filters";
+import { useInsightsQuery } from "@/lib/insights/use-insights-query";
 import { ChartCard } from "./chart-card";
 import { VerticalBarChart } from "./charts/bar-chart";
 import { DonutChart } from "./charts/donut-chart";
@@ -20,7 +19,6 @@ import {
   HorizontalBarList,
   type LabeledBucket,
 } from "./charts/horizontal-bar-list";
-import { HistogramChart } from "./charts/histogram-chart";
 import { MetricList } from "./charts/metric-list";
 import { SegmentedBar } from "./charts/segmented-bar";
 import { TagPills } from "./charts/tag-pills";
@@ -38,71 +36,20 @@ export function AudiencePanel({
   useDevMock = false,
   onLoadingChange,
 }: AudiencePanelProps) {
-  const [insights, setInsights] = useState<AudienceInsights | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const mockParam =
+    useDevMock && process.env.NODE_ENV !== "production" ? "&mock=1" : "";
+  const url = `/api/insights/users?${buildInsightsQueryString(filters)}${mockParam}`;
 
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
-    setLoading(true);
-    onLoadingChange?.(true);
-    setError("");
-
-    void (async () => {
-      try {
-        const query = buildInsightsQueryString(filters);
-        const mockParam =
-          useDevMock && process.env.NODE_ENV !== "production" ? "&mock=1" : "";
-        const response = await fetch(`/api/insights/users?${query}${mockParam}`, {
-          credentials: "same-origin",
-          signal: controller.signal,
-        });
-        const body = await response.json().catch(() => null);
-        if (!active) return;
-
-        if (!response.ok) {
-          setInsights(null);
-          setError(
-            typeof body?.message === "string"
-              ? body.message
-              : "Audience insights could not be loaded.",
-          );
-          return;
-        }
-        const parsed = readAudienceInsights(body);
-        if (!parsed) {
-          setInsights(null);
-          setError("Audience insights returned an unexpected response.");
-          return;
-        }
-        setInsights(parsed);
-      } catch {
-        if (active) {
-          setInsights(null);
-          setError(
-            controller.signal.aborted
-              ? "Audience insights took too long to load. Please try again."
-              : "Audience insights could not be reached.",
-          );
-        }
-      } finally {
-        clearTimeout(timeout);
-        if (active) {
-          setLoading(false);
-          onLoadingChange?.(false);
-        }
-      }
-    })();
-
-    return () => {
-      active = false;
-      clearTimeout(timeout);
-      controller.abort();
-      onLoadingChange?.(false);
-    };
-  }, [filters, useDevMock, onLoadingChange]);
+  const {
+    data: insights,
+    error,
+    loading,
+  } = useInsightsQuery(
+    url,
+    readAudienceInsights,
+    { subject: "Audience insights" },
+    onLoadingChange,
+  );
 
   if (error) {
     return (
@@ -236,7 +183,7 @@ export function AudiencePanel({
       </section>
 
       {/* Signups vs Onboarded Dual Bar Chart + Donut Health Cards */}
-      <section className="grid gap-6 lg:grid-cols-12">
+      <section className="grid items-start gap-6 lg:grid-cols-12">
         <ChartCard
           className="lg:col-span-12"
           title="Signups vs onboarded accounts per day"
@@ -246,16 +193,20 @@ export function AudiencePanel({
           <div className="space-y-4">
             <VerticalBarChart
               title="Signups vs onboarded accounts per day"
-              dates={dailyDates}
+              categories={dailyDates.map((date) => ({
+                key: date,
+                label: date,
+                shortLabel: date.slice(5),
+              }))}
               series={[
                 {
                   label: "Signups",
-                  colorClass: "fill-[#f43f5e]",
+                  colorClass: "bg-[#f43f5e]",
                   getValue: (date) => signupMap.get(date) ?? 0,
                 },
                 {
                   label: "Onboarded",
-                  colorClass: "fill-[#fda4af]",
+                  colorClass: "bg-[#fda4af]",
                   getValue: (date) => onboardedMap.get(date) ?? 0,
                 },
               ]}
@@ -353,35 +304,19 @@ export function AudiencePanel({
       </section>
 
       {/* Demographics & Intent */}
-      <section className="grid gap-6 lg:grid-cols-12">
+      <section className="grid items-start gap-6 lg:grid-cols-12">
         <ChartCard
-          className="lg:col-span-7"
-          title="Faculty breakdown"
-          description="Headcount per campus faculty; faculties with fewer than 5 accounts roll into Other."
-          empty={insights.faculty.length === 0}
-        >
-          <HorizontalBarList items={toLabeled("faculty", insights.faculty)} />
-        </ChartCard>
-
-        <ChartCard
-          className="lg:col-span-5"
+          className="lg:col-span-6"
           title="Academic standing (Year)"
           description="Distribution across study years 1 to 6."
           empty={insights.year.length === 0}
         >
-          <HistogramChart
+          <VerticalBarChart
             title="Academic standing by year"
-            items={toLabeled("year", insights.year)}
+            showValues
+            emptyMessage="No study years meet the minimum bucket size of 5."
+            {...buildBucketBarProps(insights.year, "year")}
           />
-        </ChartCard>
-
-        <ChartCard
-          className="lg:col-span-6"
-          title="Gender identity breakdown"
-          description="Self-declared gender pool balance."
-          empty={insights.gender.length === 0}
-        >
-          <SegmentedBar items={toLabeled("gender", insights.gender)} />
         </ChartCard>
 
         <ChartCard
@@ -397,10 +332,30 @@ export function AudiencePanel({
           }
           empty={insights.ageBands.buckets.length === 0}
         >
-          <HistogramChart
+          <VerticalBarChart
             title="Age distribution bands"
-            items={toLabeled("ageBand", insights.ageBands.buckets)}
+            showValues
+            emptyMessage="No age bands meet the minimum bucket size of 5."
+            {...buildBucketBarProps(insights.ageBands.buckets, "ageBand")}
           />
+        </ChartCard>
+
+        <ChartCard
+          className="lg:col-span-6"
+          title="Gender identity breakdown"
+          description="Self-declared gender pool balance."
+          empty={insights.gender.length === 0}
+        >
+          <SegmentedBar items={toLabeled("gender", insights.gender)} />
+        </ChartCard>
+
+        <ChartCard
+          className="lg:col-span-6"
+          title="Top interest tags"
+          description="Multi-value frequency; each person counts once per selected interest tag."
+          empty={insights.interestTags.length === 0}
+        >
+          <TagPills items={toLabeled("interest", insights.interestTags)} />
         </ChartCard>
 
         <ChartCard
@@ -428,11 +383,11 @@ export function AudiencePanel({
 
         <ChartCard
           className="lg:col-span-12"
-          title="Top interest tags"
-          description="Multi-value frequency; each person counts once per selected interest tag."
-          empty={insights.interestTags.length === 0}
+          title="Faculty breakdown"
+          description="Headcount per campus faculty; faculties with fewer than 5 accounts roll into Other."
+          empty={insights.faculty.length === 0}
         >
-          <TagPills items={toLabeled("interest", insights.interestTags)} />
+          <HorizontalBarList items={toLabeled("faculty", insights.faculty)} />
         </ChartCard>
       </section>
 
@@ -452,7 +407,7 @@ export function AudiencePanel({
             &ldquo;No restrictions (Open Deck)&rdquo;.
           </p>
         </div>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid items-start gap-6 md:grid-cols-2">
           <ChartCard
             title="Preferred faculties"
             empty={insights.matchFilters.faculties.length === 0}
@@ -503,4 +458,22 @@ function toLabeled(
     label: formatInsightLabel(dimension, bucket.key),
     count: bucket.count,
   }));
+}
+
+function buildBucketBarProps(
+  buckets: BucketCount[],
+  dimension: LabelDimension,
+) {
+  const labeled = toLabeled(dimension, buckets);
+  const counts = new Map(labeled.map((item) => [item.key, item.count]));
+  return {
+    categories: labeled.map(({ key, label }) => ({ key, label })),
+    series: [
+      {
+        label: "Users",
+        colorClass: "bg-[#fb7185]",
+        getValue: (key: string) => counts.get(key) ?? 0,
+      },
+    ],
+  };
 }
