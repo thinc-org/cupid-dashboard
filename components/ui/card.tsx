@@ -6,7 +6,7 @@ function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
     <div
       data-slot="card"
       className={cn(
-        "rounded-xl border border-border bg-card text-card-foreground shadow-[0_1px_3px_rgba(244,63,94,0.06)]",
+        "rounded-2xl border border-pink-100/90 bg-white text-card-foreground shadow-[0_8px_24px_-4px_rgba(244,114,182,0.07),0_2px_8px_-2px_rgba(244,114,182,0.04)] transition-shadow",
         className,
       )}
       {...props}
@@ -18,7 +18,7 @@ function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       data-slot="card-header"
-      className={cn("flex flex-col gap-1.5 px-5 pt-5", className)}
+      className={cn("flex flex-col gap-1 px-5 pt-5", className)}
       {...props}
     />
   );
@@ -28,7 +28,7 @@ function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) 
   return (
     <h3
       data-slot="card-title"
-      className={cn("text-base font-semibold tracking-tight text-foreground", className)}
+      className={cn("text-sm font-bold tracking-tight text-slate-900", className)}
       {...props}
     />
   );
@@ -41,7 +41,7 @@ function CardDescription({
   return (
     <p
       data-slot="card-description"
-      className={cn("text-xs leading-relaxed text-muted-foreground", className)}
+      className={cn("text-xs leading-relaxed text-slate-500", className)}
       {...props}
     />
   );
