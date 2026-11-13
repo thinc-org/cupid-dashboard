@@ -1,6 +1,5 @@
 "use client";
 
-import { Activity, CheckCircle2, TrendingUp, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   readAudienceInsights,
@@ -122,10 +121,10 @@ export function AudiencePanel({
         <KpiCard
           label="Total signups"
           value={totalSignups !== null ? formatCount(totalSignups) : null}
-          delta={
+          badge={
             signupDelta !== null
               ? {
-                  text: `${signupDelta >= 0 ? "+" : ""}${formatDecimal(signupDelta)}% vs prev`,
+                  text: `${signupDelta >= 0 ? "+" : ""}${formatDecimal(signupDelta)}%`,
                   tone:
                     signupDelta > 0
                       ? "positive"
@@ -135,8 +134,15 @@ export function AudiencePanel({
                 }
               : null
           }
-          subtext="All users in range, including incomplete onboarding"
-          icon={<Users className="size-4" />}
+          subtext="Includes incomplete onboarding"
+          footer={
+            previousSignups !== null
+              ? {
+                  label: "Previous period:",
+                  value: formatCount(previousSignups),
+                }
+              : null
+          }
         />
         <KpiCard
           label="Onboarded profiles"
@@ -145,26 +151,58 @@ export function AudiencePanel({
               ? formatCount(insights.onboardedStatus.onboarded)
               : null
           }
+          valueAccentClass="text-[#f43f5e]"
+          badge={
+            insights.onboardedStatus
+              ? {
+                  text: `${formatPercent(insights.onboardedStatus.onboarded, onboardedTotal)} Rate`,
+                  tone: "pink",
+                }
+              : null
+          }
           subtext={
             insights.onboardedStatus
-              ? `${formatPercent(insights.onboardedStatus.onboarded, onboardedTotal)} conversion · ${formatCount(insights.onboardedStatus.notOnboarded)} incomplete`
+              ? "Full profile created"
               : "Split hidden when either cohort is under 5"
           }
-          icon={<CheckCircle2 className="size-4" />}
+          footer={
+            insights.onboardedStatus
+              ? {
+                  label: "Incomplete:",
+                  value: `${formatCount(insights.onboardedStatus.notOnboarded)} (${formatPercent(insights.onboardedStatus.notOnboarded, onboardedTotal)})`,
+                }
+              : null
+          }
         />
         <KpiCard
           label="Current account state"
           value={
             insights.pausedStatus
-              ? `${formatCount(insights.pausedStatus.active)} active`
+              ? `${formatCount(insights.pausedStatus.active)} Active`
+              : null
+          }
+          badge={
+            insights.pausedStatus
+              ? {
+                  text: `${formatPercent(insights.pausedStatus.paused, activeTotal)} Paused`,
+                  tone: "neutral",
+                }
               : null
           }
           subtext={
             insights.pausedStatus
-              ? `${formatCount(insights.pausedStatus.paused)} paused now (${formatPercent(insights.pausedStatus.paused, activeTotal)})`
-              : "Active/paused split hidden when either side is under 5"
+              ? "Current status snapshot"
+              : "Split hidden when either side is under 5"
           }
-          icon={<Activity className="size-4" />}
+          footer={
+            insights.pausedStatus
+              ? {
+                  label: "Currently paused:",
+                  value: `${formatCount(insights.pausedStatus.paused)} paused`,
+                  valueClass: "text-emerald-600",
+                }
+              : null
+          }
         />
         <KpiCard
           label="Daily run-rate"
@@ -173,12 +211,24 @@ export function AudiencePanel({
               ? `${formatDecimal(avgDailySignups)} / day`
               : null
           }
-          subtext={
-            peakSignupDay
-              ? `Peak: ${peakSignupDay.date} (${formatCount(peakSignupDay.count)} signups)`
-              : "No days with at least 5 signups"
+          badge={
+            insights.signupsPerDay.length > 0
+              ? {
+                  text: `${insights.signupsPerDay.length} Days`,
+                  tone: "pink",
+                }
+              : null
           }
-          icon={<TrendingUp className="size-4" />}
+          subtext="Average daily signups"
+          footer={
+            peakSignupDay
+              ? {
+                  label: "Peak day:",
+                  value: `${peakSignupDay.date.slice(5)} (${formatCount(peakSignupDay.count)})`,
+                  valueClass: "text-[#f43f5e]",
+                }
+              : null
+          }
         />
       </section>
 
@@ -193,6 +243,7 @@ export function AudiencePanel({
           <div className="space-y-4">
             <VerticalBarChart
               title="Signups vs onboarded accounts per day"
+              highlightPeak
               categories={dailyDates.map((date) => ({
                 key: date,
                 label: date,
@@ -201,12 +252,18 @@ export function AudiencePanel({
               series={[
                 {
                   label: "Signups",
-                  colorClass: "bg-[#f43f5e]",
+                  colorClass: "bg-[#fb7185]",
+                  getColorClass: (_key, isPeak) =>
+                    isPeak ? "bg-[#f43f5e] ring-2 ring-pink-300" : "bg-[#fb7185]",
                   getValue: (date) => signupMap.get(date) ?? 0,
                 },
                 {
                   label: "Onboarded",
-                  colorClass: "bg-[#fda4af]",
+                  colorClass: "bg-[#fbcfe8] border border-[#f9a8d4]/70",
+                  getColorClass: (_key, isPeak) =>
+                    isPeak
+                      ? "bg-[#f9a8d4] border border-[#f472b6]"
+                      : "bg-[#fbcfe8] border border-[#f9a8d4]/70",
                   getValue: (date) => onboardedMap.get(date) ?? 0,
                 },
               ]}
@@ -247,25 +304,26 @@ export function AudiencePanel({
         <ChartCard
           className="lg:col-span-6"
           title="Onboarded vs not onboarded"
+          headerAction={<Badge variant="soft">Conversion</Badge>}
           empty={!insights.onboardedStatus}
           emptyMessage="Hidden because either onboarded or incomplete count is under 5."
         >
           {insights.onboardedStatus ? (
             <DonutChart
               title="Onboarded vs not onboarded"
-              centerLabel="Onboarded"
+              centerLabel="Complete"
               segments={[
                 {
                   label: "Onboarded",
                   count: insights.onboardedStatus.onboarded,
-                  strokeClass: "stroke-[#f43f5e]",
-                  dotClass: "bg-[#f43f5e]",
+                  strokeClass: "stroke-[#f472b6]",
+                  dotClass: "bg-[#f472b6]",
                 },
                 {
                   label: "Not onboarded",
                   count: insights.onboardedStatus.notOnboarded,
-                  strokeClass: "stroke-[#ffe4e6]",
-                  dotClass: "bg-[#fda4af]",
+                  strokeClass: "stroke-[#fce7f3]",
+                  dotClass: "bg-[#fce7f3] border border-[#fbcfe8]",
                 },
               ]}
             />
@@ -276,6 +334,7 @@ export function AudiencePanel({
           className="lg:col-span-6"
           title="Paused vs active accounts"
           description="Current account status."
+          headerAction={<Badge variant="emerald">Deck Health</Badge>}
           empty={!insights.pausedStatus}
           emptyMessage="Hidden because either active or paused count is under 5."
         >
@@ -283,18 +342,19 @@ export function AudiencePanel({
             <DonutChart
               title="Paused vs active accounts"
               centerLabel="Active"
+              centerLabelClass="text-emerald-600"
               segments={[
                 {
                   label: "Active",
                   count: insights.pausedStatus.active,
-                  strokeClass: "stroke-[#fb7185]",
-                  dotClass: "bg-[#fb7185]",
+                  strokeClass: "stroke-emerald-500",
+                  dotClass: "bg-emerald-500",
                 },
                 {
                   label: "Paused now",
                   count: insights.pausedStatus.paused,
-                  strokeClass: "stroke-[#ffe4e6]",
-                  dotClass: "bg-[#fda4af]",
+                  strokeClass: "stroke-amber-500",
+                  dotClass: "bg-amber-500",
                 },
               ]}
             />
@@ -457,11 +517,14 @@ function buildBucketBarProps(
   const labeled = toLabeled(dimension, buckets);
   const counts = new Map(labeled.map((item) => [item.key, item.count]));
   return {
+    highlightPeak: true,
     categories: labeled.map(({ key, label }) => ({ key, label })),
     series: [
       {
         label: "Users",
-        colorClass: "bg-[#fb7185]",
+        colorClass: "bg-[#f9a8d4]",
+        getColorClass: (_key: string, isPeak: boolean) =>
+          isPeak ? "bg-[#f472b6]" : "bg-[#f9a8d4]",
         getValue: (key: string) => counts.get(key) ?? 0,
       },
     ],

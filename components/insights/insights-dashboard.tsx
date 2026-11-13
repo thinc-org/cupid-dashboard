@@ -42,7 +42,7 @@ export function InsightsDashboard() {
       />
 
       <div
-        className="inline-flex rounded-xl border border-border bg-card p-1 shadow-[0_1px_2px_rgba(244,63,94,0.05)]"
+        className="inline-flex rounded-2xl border border-pink-100/90 bg-white p-1 shadow-[0_4px_12px_-2px_rgba(244,114,182,0.06)]"
         role="tablist"
         aria-label="Insight sections"
       >
@@ -50,7 +50,7 @@ export function InsightsDashboard() {
           type="button"
           role="tab"
           aria-selected={activeTab === "audience"}
-          variant={activeTab === "audience" ? "default" : "ghost"}
+          variant={activeTab === "audience" ? "gradient" : "ghost"}
           size="sm"
           onClick={() => setActiveTab("audience")}
         >
@@ -60,7 +60,7 @@ export function InsightsDashboard() {
           type="button"
           role="tab"
           aria-selected={activeTab === "daily-decks"}
-          variant={activeTab === "daily-decks" ? "default" : "ghost"}
+          variant={activeTab === "daily-decks" ? "gradient" : "ghost"}
           size="sm"
           onClick={() => {
             setActiveTab("daily-decks");

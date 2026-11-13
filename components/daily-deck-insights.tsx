@@ -90,11 +90,14 @@ export function DailyDeckInsightsPanel({
         <ChartCard title="Decks generated" empty={dates.length === 0}>
           <VerticalBarChart
             title="Decks generated"
+            highlightPeak
             categories={categories}
             series={[
               {
                 label: "Decks generated",
-                colorClass: "bg-[#f43f5e]",
+                colorClass: "bg-[#fb7185]",
+                getColorClass: (_key, isPeak) =>
+                  isPeak ? "bg-[#f43f5e]" : "bg-[#fb7185]",
                 getValue: (date) => byDate.get(date)?.decksGenerated ?? 0,
               },
             ]}
@@ -104,11 +107,14 @@ export function DailyDeckInsightsPanel({
         <ChartCard title="Total candidate slots" empty={dates.length === 0}>
           <VerticalBarChart
             title="Total candidate slots"
+            highlightPeak
             categories={categories}
             series={[
               {
                 label: "Candidate slots",
-                colorClass: "bg-[#fb7185]",
+                colorClass: "bg-[#f472b6]",
+                getColorClass: (_key, isPeak) =>
+                  isPeak ? "bg-[#db2777]" : "bg-[#f472b6]",
                 getValue: (date) => byDate.get(date)?.totalCandidateSlots ?? 0,
               },
             ]}
@@ -122,7 +128,7 @@ export function DailyDeckInsightsPanel({
             series={[
               {
                 label: "Average size",
-                colorClass: "bg-[#f472b6]",
+                colorClass: "bg-[#f9a8d4]",
                 getValue: (date) => byDate.get(date)?.averageDeckSize ?? 0,
                 formatValue: formatDecimal,
               },
@@ -133,11 +139,14 @@ export function DailyDeckInsightsPanel({
         <ChartCard title="Completed decks" empty={dates.length === 0}>
           <VerticalBarChart
             title="Completed decks"
+            highlightPeak
             categories={categories}
             series={[
               {
                 label: "Completed decks",
-                colorClass: "bg-[#f43f5e]",
+                colorClass: "bg-[#fb7185]",
+                getColorClass: (_key, isPeak) =>
+                  isPeak ? "bg-[#f43f5e]" : "bg-[#fb7185]",
                 getValue: (date) => byDate.get(date)?.completedDecks ?? 0,
               },
             ]}
@@ -157,7 +166,7 @@ export function DailyDeckInsightsPanel({
             series={[
               {
                 label: "Completion rate",
-                colorClass: "bg-[#be185d]",
+                colorClass: "bg-[#f472b6]",
                 getValue: (date) =>
                   (byDate.get(date)?.completionRate ?? 0) * 100,
                 formatValue: (value) => `${formatDecimal(value)}%`,
