@@ -2,8 +2,10 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
-import { DailyDeckInsightsPanel } from "@/components/daily-deck-insights";
+import { InsightsDashboard } from "@/components/insights/insights-dashboard";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 type SessionStatus = "checking" | "signed-out" | "signed-in";
 type GoogleCredentialResponse = { credential: string };
@@ -194,7 +196,7 @@ export default function HomePage() {
 
   return (
     <main
-      className={`mx-auto px-6 py-18 ${status === "signed-in" ? "max-w-5xl" : "max-w-xl"}`}
+      className={`mx-auto px-6 py-10 ${status === "signed-in" ? "max-w-7xl" : "max-w-xl py-20"}`}
     >
       {googleClientId ? (
         <Script
@@ -207,51 +209,80 @@ export default function HomePage() {
           }
         />
       ) : null}
-      <p className="text-sm tracking-wide uppercase">CUpid dashboard</p>
-      <h1 className="mt-2 text-4xl font-semibold">Insights</h1>
+
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Badge variant="soft">CUpid Staff Analytics</Badge>
+            <Badge variant="outline">k ≥ 5 aggregate-only</Badge>
+          </div>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Insights Dashboard
+          </h1>
+        </div>
+
+        {status === "signed-in" ? (
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2 shadow-[0_1px_2px_rgba(244,63,94,0.05)]">
+            <span className="text-xs font-medium text-muted-foreground">
+              {email}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void signOut()}
+            >
+              {busy ? "Signing out…" : "Sign out"}
+            </Button>
+          </div>
+        ) : null}
+      </header>
+
       {status === "checking" ? (
-        <p className="mt-4 text-lg leading-normal">Checking your session.</p>
+        <Card className="mt-8">
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            Checking your staff session…
+          </CardContent>
+        </Card>
       ) : null}
-      {status === "signed-in" ? (
-        <>
-          <p className="mt-4 text-lg leading-normal">Signed in as {email}.</p>
-          <DailyDeckInsightsPanel />
-          <Button
-            className="mt-6"
-            variant="outline"
-            disabled={busy}
-            onClick={() => void signOut()}
-          >
-            {busy ? "Signing out…" : "Sign out"}
-          </Button>
-        </>
-      ) : null}
+
+      {status === "signed-in" ? <InsightsDashboard /> : null}
+
       {status === "signed-out" ? (
-        <>
-          <p className="mt-4 text-lg leading-normal">
-            Sign in with a staff Google account.
-          </p>
-          {googleClientId ? (
-            <div
-              ref={buttonRef}
-              className={`mt-6${busy ? " pointer-events-none opacity-50" : ""}`}
-              aria-busy={busy}
-              inert={busy}
-            />
-          ) : (
-            <p className="mt-6 text-muted-foreground">
-              Google sign-in is not configured.
-            </p>
-          )}
-          {busy ? (
-            <p className="mt-4" role="status">
-              Signing in…
-            </p>
-          ) : null}
-        </>
+        <Card className="mt-8">
+          <CardContent className="space-y-4 pt-6">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Staff sign-in
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Sign in with an allowlisted Google account to view aggregate
+                cohort and deck insights.
+              </p>
+            </div>
+            {googleClientId ? (
+              <div
+                ref={buttonRef}
+                className={busy ? "pointer-events-none opacity-50" : undefined}
+                aria-busy={busy}
+                inert={busy}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Google sign-in is not configured.
+              </p>
+            )}
+            {busy ? (
+              <p className="text-sm text-muted-foreground" role="status">
+                Signing in…
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
       ) : null}
+
       {error ? (
-        <p className="mt-6 text-destructive" role="alert">
+        <p className="mt-6 text-sm font-medium text-destructive" role="alert">
           {error}
         </p>
       ) : null}
