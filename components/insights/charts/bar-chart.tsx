@@ -1,64 +1,74 @@
+import { cn } from "@/lib/utils";
 import { formatCount } from "../formatters";
 
-export type BarSeries = {
+export type BarChartCategory = {
+  key: string;
   label: string;
-  color: string;
-  values: Map<string, number>;
+  shortLabel?: string;
 };
 
-export type SingleSeriesPoint = {
-  date: string;
-  value: number;
+export type BarChartSeries = {
+  label: string;
+  colorClass: string;
+  getValue: (key: string) => number;
+  formatValue?: (value: number) => string;
 };
 
 type VerticalBarChartProps = {
   title: string;
-  dates: string[];
-  series: {
-    label: string;
-    colorClass: string;
-    getValue: (date: string) => number;
-    formatValue?: (value: number) => string;
-  }[];
+  categories: BarChartCategory[];
+  series: BarChartSeries[];
+  emptyMessage?: string;
+  showValues?: boolean;
+  maxValue?: number;
 };
 
+/**
+ * Shared responsive column bar chart for daily time-series and categorical
+ * distributions. Columns fill 100% container width evenly and scroll only for
+ * ranges wider than 14 bars.
+ */
 export function VerticalBarChart({
   title,
-  dates,
+  categories,
   series,
+  emptyMessage = "No days meet the minimum bucket size of 5.",
+  showValues = false,
+  maxValue,
 }: VerticalBarChartProps) {
-  if (dates.length === 0 || series.length === 0) {
+  if (categories.length === 0 || series.length === 0) {
     return (
       <div
-        className="relative flex h-40 items-center justify-center rounded-lg border border-dashed border-border bg-secondary/40 text-xs text-muted-foreground"
+        className="relative flex h-44 items-center justify-center rounded-lg border border-dashed border-border bg-secondary/40 text-xs text-muted-foreground"
         role="img"
         aria-label={`${title}: no data available`}
       >
-        No days meet the minimum bucket size of 5.
+        {emptyMessage}
       </div>
     );
   }
 
   const isDual = series.length > 1;
-  const slotWidth = isDual ? 58 : 48;
-  const barWidth = isDual ? 16 : 24;
-  const width = Math.max(dates.length * slotWidth, 320);
-
-  let peak = 1;
-  for (const date of dates) {
+  let peak = maxValue && maxValue > 0 ? maxValue : 1;
+  for (const cat of categories) {
     for (const item of series) {
-      peak = Math.max(peak, item.getValue(date));
+      peak = Math.max(peak, item.getValue(cat.key));
     }
   }
 
+  const minWidthStyle =
+    categories.length > 14
+      ? { minWidth: `${categories.length * (isDual ? 54 : 44)}px` }
+      : undefined;
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" role="img" aria-label={title}>
       {isDual ? (
         <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
           {series.map((item) => (
             <span key={item.label} className="inline-flex items-center gap-1.5">
               <span
-                className={`inline-block size-2.5 rounded-sm ${item.colorClass}`}
+                className={cn("inline-block size-2.5 rounded-sm", item.colorClass)}
                 aria-hidden="true"
               />
               {item.label}
@@ -66,62 +76,69 @@ export function VerticalBarChart({
           ))}
         </div>
       ) : null}
+
       <div className="overflow-x-auto">
-        <svg
-          viewBox={`0 0 ${width} 152`}
-          className="h-40"
-          style={{ width }}
-          role="img"
-          aria-label={title}
-        >
-          {[22, 54, 86, 118].map((y) => (
-            <line
-              key={y}
-              x1="0"
-              x2={width}
-              y1={y}
-              y2={y}
-              className="stroke-border"
-              strokeDasharray={y === 118 ? undefined : "4 4"}
-            />
-          ))}
-          {dates.map((date, index) => {
-            const xOffset = index * slotWidth + 10;
-            return (
-              <g key={date} transform={`translate(${xOffset} 0)`}>
-                {series.map((item, sIndex) => {
-                  const val = item.getValue(date);
-                  const height = val > 0 ? Math.max((val / peak) * 94, 3) : 0;
-                  const x = isDual ? sIndex * (barWidth + 4) + 2 : 7;
-                  const formatted = item.formatValue
-                    ? item.formatValue(val)
-                    : formatCount(val);
-                  return (
-                    <rect
-                      key={item.label}
-                      x={x}
-                      y={118 - height}
-                      width={barWidth}
-                      height={height}
-                      rx="4"
-                      className={item.colorClass}
-                    >
-                      <title>{`${date} — ${item.label}: ${formatted}`}</title>
-                    </rect>
-                  );
-                })}
-                <text
-                  x={isDual ? 20 : 19}
-                  y="136"
-                  textAnchor="middle"
-                  className="fill-muted-foreground text-[9px] tabular-nums"
+        <div className="relative w-full" style={minWidthStyle}>
+          {/* Continuous full-width horizontal gridlines aligned with the 135px bar plot area (below 24px label headroom). */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-6 flex h-[136px] flex-col justify-between"
+            aria-hidden="true"
+          >
+            <div className="border-t border-dashed border-border/80" />
+            <div className="border-t border-dashed border-border/80" />
+            <div className="border-t border-dashed border-border/80" />
+            <div className="border-b border-border" />
+          </div>
+
+          <div className="relative z-10 flex w-full items-stretch gap-2 px-1 sm:gap-3">
+            {categories.map((cat) => (
+              <div
+                key={cat.key}
+                className="flex min-w-0 flex-1 flex-col items-center"
+              >
+                <div className="relative flex h-40 w-full items-end justify-center gap-1 pt-6 pb-px">
+                  {series.map((item) => {
+                    const val = item.getValue(cat.key);
+                    const pct =
+                      val > 0 ? Math.min(Math.max((val / peak) * 100, 4), 100) : 0;
+                    const formatted = item.formatValue
+                      ? item.formatValue(val)
+                      : formatCount(val);
+                    const barColor =
+                      !isDual && cat.key === "other"
+                        ? "bg-muted-foreground/50"
+                        : item.colorClass;
+
+                    return (
+                      <div
+                        key={item.label}
+                        className={cn(
+                          "relative rounded-t-md transition-[height] duration-300",
+                          isDual ? "w-full max-w-5" : "w-full max-w-11",
+                          barColor,
+                        )}
+                        style={{ height: `${pct}%` }}
+                        title={`${cat.label} — ${item.label}: ${formatted}`}
+                      >
+                        {showValues && !isDual ? (
+                          <span className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap text-[11px] font-semibold text-foreground tabular-nums">
+                            {formatted}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+                <span
+                  className="mt-1.5 max-w-full truncate text-center text-[11px] text-muted-foreground tabular-nums"
+                  title={cat.label}
                 >
-                  {date.slice(5)}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+                  {cat.shortLabel ?? cat.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
