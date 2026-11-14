@@ -3,7 +3,9 @@
 import { Badge } from "@/components/ui/badge";
 import {
   readAudienceInsights,
+  type AudienceInsights,
   type BucketCount,
+  type MatchFilterInsights,
 } from "@/lib/insights/audience";
 import { formatInsightLabel, type LabelDimension } from "@/lib/insights/enums";
 import {
@@ -29,6 +31,8 @@ type AudiencePanelProps = {
   useDevMock?: boolean;
   onLoadingChange?: (loading: boolean) => void;
 };
+
+type AudienceSummary = ReturnType<typeof computeAudienceSummary>;
 
 export function AudiencePanel({
   filters,
@@ -74,6 +78,19 @@ export function AudiencePanel({
     );
   }
 
+  const summary = computeAudienceSummary(insights);
+
+  return (
+    <div className="space-y-6">
+      <AudienceKpiSection insights={insights} summary={summary} />
+      <AudienceHealthSection insights={insights} summary={summary} />
+      <AudienceDemographicsSection insights={insights} />
+      <MatchPreferencesSection matchFilters={insights.matchFilters} />
+    </div>
+  );
+}
+
+function computeAudienceSummary(insights: AudienceInsights) {
   const signupMap = new Map(
     insights.signupsPerDay.map((d) => [d.date, d.count]),
   );
@@ -109,361 +126,410 @@ export function AudiencePanel({
       : null;
   const peakSignupDay = insights.signupsPerDay.reduce<
     { date: string; count: number } | null
-  >(
-    (best, day) => (!best || day.count > best.count ? day : best),
-    null,
-  );
+  >((best, day) => (!best || day.count > best.count ? day : best), null);
+
+  return {
+    signupMap,
+    onboardedMap,
+    dailyDates,
+    totalSignups,
+    previousSignups,
+    signupDelta,
+    onboardedTotal,
+    activeTotal,
+    avgDailySignups,
+    peakSignupDay,
+  };
+}
+
+function AudienceKpiSection({
+  insights,
+  summary,
+}: {
+  insights: AudienceInsights;
+  summary: AudienceSummary;
+}) {
+  const {
+    totalSignups,
+    previousSignups,
+    signupDelta,
+    onboardedTotal,
+    activeTotal,
+    avgDailySignups,
+    peakSignupDay,
+  } = summary;
 
   return (
-    <div className="space-y-6">
-      {/* KPI Header Metrics */}
-      <section aria-label="Key metrics" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Total signups"
-          value={totalSignups !== null ? formatCount(totalSignups) : null}
-          badge={
-            signupDelta !== null
-              ? {
-                  text: `${signupDelta >= 0 ? "+" : ""}${formatDecimal(signupDelta)}%`,
-                  tone:
-                    signupDelta > 0
-                      ? "positive"
-                      : signupDelta < 0
-                        ? "negative"
-                        : "neutral",
-                }
-              : null
-          }
-          subtext="Includes incomplete onboarding"
-          footer={
-            previousSignups !== null
-              ? {
-                  label: "Previous period:",
-                  value: formatCount(previousSignups),
-                }
-              : null
-          }
-        />
-        <KpiCard
-          label="Onboarded profiles"
-          value={
-            insights.onboardedStatus
-              ? formatCount(insights.onboardedStatus.onboarded)
-              : null
-          }
-          valueAccentClass="text-[#f43f5e]"
-          badge={
-            insights.onboardedStatus
-              ? {
-                  text: `${formatPercent(insights.onboardedStatus.onboarded, onboardedTotal)} Rate`,
-                  tone: "pink",
-                }
-              : null
-          }
-          subtext={
-            insights.onboardedStatus
-              ? "Full profile created"
-              : "Split hidden when either cohort is under 5"
-          }
-          footer={
-            insights.onboardedStatus
-              ? {
-                  label: "Incomplete:",
-                  value: `${formatCount(insights.onboardedStatus.notOnboarded)} (${formatPercent(insights.onboardedStatus.notOnboarded, onboardedTotal)})`,
-                }
-              : null
-          }
-        />
-        <KpiCard
-          label="Current account state"
-          value={
-            insights.pausedStatus
-              ? `${formatCount(insights.pausedStatus.active)} Active`
-              : null
-          }
-          badge={
-            insights.pausedStatus
-              ? {
-                  text: `${formatPercent(insights.pausedStatus.paused, activeTotal)} Paused`,
-                  tone: "neutral",
-                }
-              : null
-          }
-          subtext={
-            insights.pausedStatus
-              ? "Current status snapshot"
-              : "Split hidden when either side is under 5"
-          }
-          footer={
-            insights.pausedStatus
-              ? {
-                  label: "Currently paused:",
-                  value: `${formatCount(insights.pausedStatus.paused)} paused`,
-                  valueClass: "text-emerald-600",
-                }
-              : null
-          }
-        />
-        <KpiCard
-          label="Daily run-rate"
-          value={
-            avgDailySignups !== null
-              ? `${formatDecimal(avgDailySignups)} / day`
-              : null
-          }
-          badge={
-            insights.signupsPerDay.length > 0
-              ? {
-                  text: `${insights.signupsPerDay.length} Days`,
-                  tone: "pink",
-                }
-              : null
-          }
-          subtext="Average daily signups"
-          footer={
-            peakSignupDay
-              ? {
-                  label: "Peak day:",
-                  value: `${peakSignupDay.date.slice(5)} (${formatCount(peakSignupDay.count)})`,
-                  valueClass: "text-[#f43f5e]",
-                }
-              : null
-          }
-        />
-      </section>
+    <section
+      aria-label="Key metrics"
+      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+    >
+      <KpiCard
+        label="Total signups"
+        value={totalSignups !== null ? formatCount(totalSignups) : null}
+        badge={
+          signupDelta !== null
+            ? {
+                text: `${signupDelta >= 0 ? "+" : ""}${formatDecimal(signupDelta)}%`,
+                tone:
+                  signupDelta > 0
+                    ? "positive"
+                    : signupDelta < 0
+                      ? "negative"
+                      : "neutral",
+              }
+            : null
+        }
+        subtext="Includes incomplete onboarding"
+        footer={
+          previousSignups !== null
+            ? {
+                label: "Previous period:",
+                value: formatCount(previousSignups),
+              }
+            : null
+        }
+      />
+      <KpiCard
+        label="Onboarded profiles"
+        value={
+          insights.onboardedStatus
+            ? formatCount(insights.onboardedStatus.onboarded)
+            : null
+        }
+        valueAccentClass="text-[#f43f5e]"
+        badge={
+          insights.onboardedStatus
+            ? {
+                text: `${formatPercent(insights.onboardedStatus.onboarded, onboardedTotal)} Rate`,
+                tone: "pink",
+              }
+            : null
+        }
+        subtext={
+          insights.onboardedStatus
+            ? "Full profile created"
+            : "Split hidden when either cohort is under 5"
+        }
+        footer={
+          insights.onboardedStatus
+            ? {
+                label: "Incomplete:",
+                value: `${formatCount(insights.onboardedStatus.notOnboarded)} (${formatPercent(insights.onboardedStatus.notOnboarded, onboardedTotal)})`,
+              }
+            : null
+        }
+      />
+      <KpiCard
+        label="Current account state"
+        value={
+          insights.pausedStatus
+            ? `${formatCount(insights.pausedStatus.active)} Active`
+            : null
+        }
+        badge={
+          insights.pausedStatus
+            ? {
+                text: `${formatPercent(insights.pausedStatus.paused, activeTotal)} Paused`,
+                tone: "neutral",
+              }
+            : null
+        }
+        subtext={
+          insights.pausedStatus
+            ? "Current status snapshot"
+            : "Split hidden when either side is under 5"
+        }
+        footer={
+          insights.pausedStatus
+            ? {
+                label: "Currently paused:",
+                value: `${formatCount(insights.pausedStatus.paused)} paused`,
+                valueClass: "text-emerald-600",
+              }
+            : null
+        }
+      />
+      <KpiCard
+        label="Daily run-rate"
+        value={
+          avgDailySignups !== null
+            ? `${formatDecimal(avgDailySignups)} / day`
+            : null
+        }
+        badge={
+          insights.signupsPerDay.length > 0
+            ? {
+                text: `${insights.signupsPerDay.length} Days`,
+                tone: "pink",
+              }
+            : null
+        }
+        subtext="Average daily signups"
+        footer={
+          peakSignupDay
+            ? {
+                label: "Peak day:",
+                value: `${peakSignupDay.date.slice(5)} (${formatCount(peakSignupDay.count)})`,
+                valueClass: "text-[#f43f5e]",
+              }
+            : null
+        }
+      />
+    </section>
+  );
+}
 
-      {/* Signups vs Onboarded Dual Bar Chart + Donut Health Cards */}
-      <section className="grid items-start gap-6 lg:grid-cols-12">
-        <ChartCard
-          className="lg:col-span-12"
+function AudienceHealthSection({
+  insights,
+  summary,
+}: {
+  insights: AudienceInsights;
+  summary: AudienceSummary;
+}) {
+  const { dailyDates, signupMap, onboardedMap } = summary;
+
+  return (
+    <section className="grid items-start gap-6 lg:grid-cols-12">
+      <ChartCard
+        className="lg:col-span-12"
+        title="Signups vs onboarded accounts per day"
+        description="Compares daily signups and completed onboarding."
+        empty={dailyDates.length === 0}
+      >
+        <VerticalBarChart
           title="Signups vs onboarded accounts per day"
-          description="Compares daily signups and completed onboarding."
-          empty={dailyDates.length === 0}
-        >
-          <VerticalBarChart
-            title="Signups vs onboarded accounts per day"
-            highlightPeak
-            categories={dailyDates.map((date) => ({
-              key: date,
-              label: date,
-              shortLabel: date.slice(5),
-            }))}
-            series={[
-              {
-                label: "Signups",
-                colorClass: "bg-[#fb7185]",
-                getColorClass: (_key, isPeak) =>
-                  isPeak ? "bg-[#f43f5e] ring-2 ring-pink-300" : "bg-[#fb7185]",
-                getValue: (date) => signupMap.get(date) ?? 0,
-              },
+          highlightPeak
+          categories={dailyDates.map((date) => ({
+            key: date,
+            label: date,
+            shortLabel: date.slice(5),
+          }))}
+          series={[
+            {
+              label: "Signups",
+              colorClass: "bg-[#fb7185]",
+              getColorClass: (_key, isPeak) =>
+                isPeak ? "bg-[#f43f5e] ring-2 ring-pink-300" : "bg-[#fb7185]",
+              getValue: (date) => signupMap.get(date) ?? 0,
+            },
+            {
+              label: "Onboarded",
+              colorClass: "bg-[#fbcfe8] border border-[#f9a8d4]/70",
+              getColorClass: (_key, isPeak) =>
+                isPeak
+                  ? "bg-[#f9a8d4] border border-[#f472b6]"
+                  : "bg-[#fbcfe8] border border-[#f9a8d4]/70",
+              getValue: (date) => onboardedMap.get(date) ?? 0,
+            },
+          ]}
+        />
+      </ChartCard>
+
+      <ChartCard
+        className="lg:col-span-6"
+        title="Onboarded vs not onboarded"
+        headerAction={<Badge variant="soft">Conversion</Badge>}
+        empty={!insights.onboardedStatus}
+        emptyMessage="Hidden because either onboarded or incomplete count is under 5."
+      >
+        {insights.onboardedStatus ? (
+          <DonutChart
+            title="Onboarded vs not onboarded"
+            centerLabel="Complete"
+            segments={[
               {
                 label: "Onboarded",
-                colorClass: "bg-[#fbcfe8] border border-[#f9a8d4]/70",
-                getColorClass: (_key, isPeak) =>
-                  isPeak
-                    ? "bg-[#f9a8d4] border border-[#f472b6]"
-                    : "bg-[#fbcfe8] border border-[#f9a8d4]/70",
-                getValue: (date) => onboardedMap.get(date) ?? 0,
+                count: insights.onboardedStatus.onboarded,
+                strokeClass: "stroke-[#f472b6]",
+                dotClass: "bg-[#f472b6]",
+              },
+              {
+                label: "Not onboarded",
+                count: insights.onboardedStatus.notOnboarded,
+                strokeClass: "stroke-[#fce7f3]",
+                dotClass: "bg-[#fce7f3] border border-[#fbcfe8]",
               },
             ]}
           />
-        </ChartCard>
+        ) : null}
+      </ChartCard>
 
-        <ChartCard
-          className="lg:col-span-6"
-          title="Onboarded vs not onboarded"
-          headerAction={<Badge variant="soft">Conversion</Badge>}
-          empty={!insights.onboardedStatus}
-          emptyMessage="Hidden because either onboarded or incomplete count is under 5."
-        >
-          {insights.onboardedStatus ? (
-            <DonutChart
-              title="Onboarded vs not onboarded"
-              centerLabel="Complete"
-              segments={[
-                {
-                  label: "Onboarded",
-                  count: insights.onboardedStatus.onboarded,
-                  strokeClass: "stroke-[#f472b6]",
-                  dotClass: "bg-[#f472b6]",
-                },
-                {
-                  label: "Not onboarded",
-                  count: insights.onboardedStatus.notOnboarded,
-                  strokeClass: "stroke-[#fce7f3]",
-                  dotClass: "bg-[#fce7f3] border border-[#fbcfe8]",
-                },
-              ]}
-            />
-          ) : null}
-        </ChartCard>
-
-        <ChartCard
-          className="lg:col-span-6"
-          title="Paused vs active accounts"
-          description="Current account status."
-          headerAction={<Badge variant="emerald">Deck Health</Badge>}
-          empty={!insights.pausedStatus}
-          emptyMessage="Hidden because either active or paused count is under 5."
-        >
-          {insights.pausedStatus ? (
-            <DonutChart
-              title="Paused vs active accounts"
-              centerLabel="Active"
-              centerLabelClass="text-emerald-600"
-              segments={[
-                {
-                  label: "Active",
-                  count: insights.pausedStatus.active,
-                  strokeClass: "stroke-emerald-500",
-                  dotClass: "bg-emerald-500",
-                },
-                {
-                  label: "Paused now",
-                  count: insights.pausedStatus.paused,
-                  strokeClass: "stroke-amber-500",
-                  dotClass: "bg-amber-500",
-                },
-              ]}
-            />
-          ) : null}
-        </ChartCard>
-      </section>
-
-      {/* Demographics & Intent */}
-      <section className="grid items-start gap-6 lg:grid-cols-12">
-        <ChartCard
-          className="lg:col-span-6"
-          title="Academic standing (Year)"
-          empty={insights.year.length === 0}
-        >
-          <VerticalBarChart
-            title="Academic standing by year"
-            showValues
-            emptyMessage="No study years meet the minimum bucket size of 5."
-            {...buildBucketBarProps(insights.year, "year")}
+      <ChartCard
+        className="lg:col-span-6"
+        title="Paused vs active accounts"
+        description="Current account status."
+        headerAction={<Badge variant="emerald">Deck Health</Badge>}
+        empty={!insights.pausedStatus}
+        emptyMessage="Hidden because either active or paused count is under 5."
+      >
+        {insights.pausedStatus ? (
+          <DonutChart
+            title="Paused vs active accounts"
+            centerLabel="Active"
+            centerLabelClass="text-emerald-600"
+            segments={[
+              {
+                label: "Active",
+                count: insights.pausedStatus.active,
+                strokeClass: "stroke-emerald-500",
+                dotClass: "bg-emerald-500",
+              },
+              {
+                label: "Paused now",
+                count: insights.pausedStatus.paused,
+                strokeClass: "stroke-amber-500",
+                dotClass: "bg-amber-500",
+              },
+            ]}
           />
-        </ChartCard>
+        ) : null}
+      </ChartCard>
+    </section>
+  );
+}
 
-        <ChartCard
-          className="lg:col-span-6"
+function AudienceDemographicsSection({
+  insights,
+}: {
+  insights: AudienceInsights;
+}) {
+  return (
+    <section className="grid items-start gap-6 lg:grid-cols-12">
+      <ChartCard
+        className="lg:col-span-6"
+        title="Academic standing (Year)"
+        empty={insights.year.length === 0}
+      >
+        <VerticalBarChart
+          title="Academic standing by year"
+          showValues
+          emptyMessage="No study years meet the minimum bucket size of 5."
+          {...buildBucketBarProps(insights.year, "year")}
+        />
+      </ChartCard>
+
+      <ChartCard
+        className="lg:col-span-6"
+        title="Age distribution bands"
+        description="Grouped into age ranges."
+        headerAction={
+          insights.ageBands.medianAge !== null ? (
+            <Badge variant="soft" className="tabular-nums">
+              Median: {formatDecimal(insights.ageBands.medianAge)} yrs
+            </Badge>
+          ) : null
+        }
+        empty={insights.ageBands.buckets.length === 0}
+      >
+        <VerticalBarChart
           title="Age distribution bands"
-          description="Grouped into age ranges."
-          headerAction={
-            insights.ageBands.medianAge !== null ? (
-              <Badge variant="soft" className="tabular-nums">
-                Median: {formatDecimal(insights.ageBands.medianAge)} yrs
-              </Badge>
-            ) : null
-          }
-          empty={insights.ageBands.buckets.length === 0}
+          showValues
+          emptyMessage="No age bands meet the minimum bucket size of 5."
+          {...buildBucketBarProps(insights.ageBands.buckets, "ageBand")}
+        />
+      </ChartCard>
+
+      <ChartCard
+        className="lg:col-span-6"
+        title="Gender identity breakdown"
+        empty={insights.gender.length === 0}
+      >
+        <SegmentedBar items={toLabeled("gender", insights.gender)} />
+      </ChartCard>
+
+      <ChartCard
+        className="lg:col-span-6"
+        title="Top interest tags"
+        description="Counts each selected interest per person."
+        empty={insights.interestTags.length === 0}
+      >
+        <TagPills items={toLabeled("interest", insights.interestTags)} />
+      </ChartCard>
+
+      <ChartCard
+        className="lg:col-span-6"
+        title="Relationship goals & intent"
+        empty={insights.relationshipGoal.length === 0}
+      >
+        <HorizontalBarList
+          items={toLabeled("relationshipGoal", insights.relationshipGoal)}
+        />
+      </ChartCard>
+
+      <ChartCard
+        className="lg:col-span-6"
+        title="Core value alignment"
+        description="Counts each selected value per person."
+        empty={insights.valueTags.length === 0}
+      >
+        <HorizontalBarList
+          items={toLabeled("value", insights.valueTags)}
+          ranked={false}
+        />
+      </ChartCard>
+
+      <ChartCard
+        className="lg:col-span-12"
+        title="Faculty breakdown"
+        empty={insights.faculty.length === 0}
+      >
+        <HorizontalBarList items={toLabeled("faculty", insights.faculty)} />
+      </ChartCard>
+    </section>
+  );
+}
+
+function MatchPreferencesSection({
+  matchFilters,
+}: {
+  matchFilters: MatchFilterInsights;
+}) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">
+          Match filter preferences
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Counts each preference selected; empty lists appear as &ldquo;No
+          restrictions (Open Deck)&rdquo;.
+        </p>
+      </div>
+      <div className="grid items-start gap-6 md:grid-cols-2">
+        <ChartCard
+          title="Preferred faculties"
+          empty={matchFilters.faculties.length === 0}
         >
-          <VerticalBarChart
-            title="Age distribution bands"
-            showValues
-            emptyMessage="No age bands meet the minimum bucket size of 5."
-            {...buildBucketBarProps(insights.ageBands.buckets, "ageBand")}
+          <MetricList items={toLabeled("faculty", matchFilters.faculties)} />
+        </ChartCard>
+        <ChartCard
+          title="Preferred years"
+          empty={matchFilters.years.length === 0}
+        >
+          <MetricList items={toLabeled("year", matchFilters.years)} />
+        </ChartCard>
+        <ChartCard
+          title="Preferred gender interest"
+          empty={matchFilters.genderInterest.length === 0}
+        >
+          <MetricList
+            items={toLabeled("gender", matchFilters.genderInterest)}
           />
         </ChartCard>
-
         <ChartCard
-          className="lg:col-span-6"
-          title="Gender identity breakdown"
-          empty={insights.gender.length === 0}
+          title="Preferred relationship goals"
+          empty={matchFilters.relationshipGoals.length === 0}
         >
-          <SegmentedBar items={toLabeled("gender", insights.gender)} />
-        </ChartCard>
-
-        <ChartCard
-          className="lg:col-span-6"
-          title="Top interest tags"
-          description="Counts each selected interest per person."
-          empty={insights.interestTags.length === 0}
-        >
-          <TagPills items={toLabeled("interest", insights.interestTags)} />
-        </ChartCard>
-
-        <ChartCard
-          className="lg:col-span-6"
-          title="Relationship goals & intent"
-          empty={insights.relationshipGoal.length === 0}
-        >
-          <HorizontalBarList
-            items={toLabeled("relationshipGoal", insights.relationshipGoal)}
+          <MetricList
+            items={toLabeled(
+              "relationshipGoal",
+              matchFilters.relationshipGoals,
+            )}
           />
         </ChartCard>
-
-        <ChartCard
-          className="lg:col-span-6"
-          title="Core value alignment"
-          description="Counts each selected value per person."
-          empty={insights.valueTags.length === 0}
-        >
-          <HorizontalBarList
-            items={toLabeled("value", insights.valueTags)}
-            ranked={false}
-          />
-        </ChartCard>
-
-        <ChartCard
-          className="lg:col-span-12"
-          title="Faculty breakdown"
-          empty={insights.faculty.length === 0}
-        >
-          <HorizontalBarList items={toLabeled("faculty", insights.faculty)} />
-        </ChartCard>
-      </section>
-
-      {/* Match Filters Configured */}
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground">
-            Match filter preferences
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            Counts each preference selected; empty lists appear as &ldquo;No
-            restrictions (Open Deck)&rdquo;.
-          </p>
-        </div>
-        <div className="grid items-start gap-6 md:grid-cols-2">
-          <ChartCard
-            title="Preferred faculties"
-            empty={insights.matchFilters.faculties.length === 0}
-          >
-            <MetricList
-              items={toLabeled("faculty", insights.matchFilters.faculties)}
-            />
-          </ChartCard>
-          <ChartCard
-            title="Preferred years"
-            empty={insights.matchFilters.years.length === 0}
-          >
-            <MetricList
-              items={toLabeled("year", insights.matchFilters.years)}
-            />
-          </ChartCard>
-          <ChartCard
-            title="Preferred gender interest"
-            empty={insights.matchFilters.genderInterest.length === 0}
-          >
-            <MetricList
-              items={toLabeled("gender", insights.matchFilters.genderInterest)}
-            />
-          </ChartCard>
-          <ChartCard
-            title="Preferred relationship goals"
-            empty={insights.matchFilters.relationshipGoals.length === 0}
-          >
-            <MetricList
-              items={toLabeled(
-                "relationshipGoal",
-                insights.matchFilters.relationshipGoals,
-              )}
-            />
-          </ChartCard>
-        </div>
-      </section>
-    </div>
+      </div>
+    </section>
   );
 }
 

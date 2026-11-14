@@ -32,24 +32,10 @@ const validPaused = new Set(PAUSED_OPTIONS.map(([value]) => value));
 export function parseInsightsFilterQuery(
   params: URLSearchParams,
 ): { ok: true; query: string } | { ok: false; message: string } {
-  const from = params.get("from")?.trim() ?? "";
-  const to = params.get("to")?.trim() ?? "";
-  if (!isCalendarDate(from)) {
-    return { ok: false, message: "from must be a date in YYYY-MM-DD" };
-  }
-  if (!isCalendarDate(to)) {
-    return { ok: false, message: "to must be a date in YYYY-MM-DD" };
-  }
-  if (from > to) return { ok: false, message: "from must be on or before to" };
+  const window = parseDateWindow(params);
+  if (!window.ok) return window;
 
-  const fromTime = Date.parse(`${from}T00:00:00Z`);
-  const toTime = Date.parse(`${to}T00:00:00Z`);
-  const days = Math.round((toTime - fromTime) / 86_400_000) + 1;
-  if (days > 366) {
-    return { ok: false, message: "date range cannot exceed 366 days" };
-  }
-
-  const query = new URLSearchParams({ from, to });
+  const query = new URLSearchParams({ from: window.from, to: window.to });
   const faculty = optionalText(params.get("faculty"), 80);
   if (typeof faculty !== "string") {
     return { ok: false, message: "faculty is too long" };
@@ -98,6 +84,31 @@ export function parseInsightsFilterQuery(
   if (interest) query.set("interest", interest);
 
   return { ok: true, query: query.toString() };
+}
+
+function parseDateWindow(
+  params: URLSearchParams,
+):
+  | { ok: true; from: string; to: string }
+  | { ok: false; message: string } {
+  const from = params.get("from")?.trim() ?? "";
+  const to = params.get("to")?.trim() ?? "";
+  if (!isCalendarDate(from)) {
+    return { ok: false, message: "from must be a date in YYYY-MM-DD" };
+  }
+  if (!isCalendarDate(to)) {
+    return { ok: false, message: "to must be a date in YYYY-MM-DD" };
+  }
+  if (from > to) return { ok: false, message: "from must be on or before to" };
+
+  const fromTime = Date.parse(`${from}T00:00:00Z`);
+  const toTime = Date.parse(`${to}T00:00:00Z`);
+  const days = Math.round((toTime - fromTime) / 86_400_000) + 1;
+  if (days > 366) {
+    return { ok: false, message: "date range cannot exceed 366 days" };
+  }
+
+  return { ok: true, from, to };
 }
 
 export function buildInsightsQueryString(filters: InsightsFilters): string {

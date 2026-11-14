@@ -1,11 +1,12 @@
 import "server-only";
-import type { NextRequest } from "next/server";
+import type { NextRequest, NextResponse } from "next/server";
 import { authResponse, setSessionCookie } from "@/lib/server/auth-response";
 import {
   getStaffConfig,
   STAFF_SESSION_COOKIE,
   StaffAccessDenied,
   verifyStaffSession,
+  type StaffConfig,
 } from "@/lib/server/staff-auth";
 
 type QueryParser = (
@@ -31,31 +32,8 @@ export async function proxyInsightsRequest<T>({
   parseResponse,
   mockHandler,
 }: ProxyInsightsOptions<T>) {
-  const token = request.cookies.get(STAFF_SESSION_COOKIE)?.value;
-  if (!token) return authResponse({ message: "Please sign in." }, 401);
-
-  let config;
-  try {
-    config = getStaffConfig();
-  } catch {
-    return authResponse({ message: "Staff sign-in is not configured." }, 503);
-  }
-  try {
-    await verifyStaffSession(token, config);
-  } catch (error) {
-    const denied = error instanceof StaffAccessDenied;
-    return setSessionCookie(
-      authResponse(
-        {
-          message: denied
-            ? "This Google account is not allowed to use the dashboard."
-            : "Your session is no longer valid. Please sign in again.",
-        },
-        denied ? 403 : 401,
-      ),
-      "",
-    );
-  }
+  const auth = await authenticateStaffRequest(request);
+  if (!auth.ok) return auth.response;
 
   const parsed = parseQuery(request.nextUrl.searchParams);
   if (!parsed.ok) return authResponse({ message: parsed.message }, 400);
@@ -74,18 +52,98 @@ export async function proxyInsightsRequest<T>({
     }
   }
 
-  const apiUrl = process.env.CUPID_API_URL?.trim() ?? "";
-  if (!apiUrl) {
-    return configurationError(
-      logPrefix,
-      subjectLabel,
-      "Set CUPID_API_URL on the dashboard server.",
-    );
+  const target = resolveUpstreamUrl(
+    process.env.CUPID_API_URL?.trim() ?? "",
+    upstreamPath,
+    parsed.query,
+    logPrefix,
+    subjectLabel,
+  );
+  if (!target.ok) return target.response;
+
+  const fetched = await fetchUpstream(target.url, auth.token, subjectLabel);
+  if (!fetched.ok) return fetched.response;
+
+  return handleUpstreamResponse({
+    upstream: fetched.upstream,
+    signal: fetched.signal,
+    token: auth.token,
+    config: auth.config,
+    logPrefix,
+    subjectLabel,
+    parseResponse,
+  });
+}
+
+async function authenticateStaffRequest(
+  request: NextRequest,
+): Promise<
+  | { ok: true; token: string; config: StaffConfig }
+  | { ok: false; response: NextResponse }
+> {
+  const token = request.cookies.get(STAFF_SESSION_COOKIE)?.value;
+  if (!token) {
+    return {
+      ok: false,
+      response: authResponse({ message: "Please sign in." }, 401),
+    };
   }
 
-  let url: URL;
+  let config: StaffConfig;
   try {
-    url = new URL(apiUrl);
+    config = getStaffConfig();
+  } catch {
+    return {
+      ok: false,
+      response: authResponse(
+        { message: "Staff sign-in is not configured." },
+        503,
+      ),
+    };
+  }
+
+  try {
+    await verifyStaffSession(token, config);
+    return { ok: true, token, config };
+  } catch (error) {
+    const denied = error instanceof StaffAccessDenied;
+    return {
+      ok: false,
+      response: setSessionCookie(
+        authResponse(
+          {
+            message: denied
+              ? "This Google account is not allowed to use the dashboard."
+              : "Your session is no longer valid. Please sign in again.",
+          },
+          denied ? 403 : 401,
+        ),
+        "",
+      ),
+    };
+  }
+}
+
+function resolveUpstreamUrl(
+  apiUrl: string,
+  upstreamPath: string,
+  query: string,
+  logPrefix: string,
+  subjectLabel: string,
+): { ok: true; url: URL } | { ok: false; response: NextResponse } {
+  if (!apiUrl) {
+    return {
+      ok: false,
+      response: configurationError(
+        logPrefix,
+        subjectLabel,
+        "Set CUPID_API_URL on the dashboard server.",
+      ),
+    };
+  }
+
+  try {
+    const url = new URL(apiUrl);
     if (
       !["http:", "https:"].includes(url.protocol) ||
       url.username ||
@@ -99,40 +157,77 @@ export async function proxyInsightsRequest<T>({
       ? upstreamPath
       : `/${upstreamPath}`;
     url.pathname = `${url.pathname.replace(/\/+$/, "")}${normalizedPath}`;
-    url.search = parsed.query;
+    url.search = query;
+    return { ok: true, url };
   } catch {
-    return configurationError(
-      logPrefix,
-      subjectLabel,
-      "CUPID_API_URL must be an HTTP(S) backend base URL without credentials, query, or fragment.",
-    );
+    return {
+      ok: false,
+      response: configurationError(
+        logPrefix,
+        subjectLabel,
+        "CUPID_API_URL must be an HTTP(S) backend base URL without credentials, query, or fragment.",
+      ),
+    };
   }
+}
 
-  let upstream: Response;
+async function fetchUpstream(
+  url: URL,
+  token: string,
+  subjectLabel: string,
+): Promise<
+  | { ok: true; upstream: Response; signal: AbortSignal }
+  | { ok: false; response: NextResponse }
+> {
   const signal = AbortSignal.timeout(15_000);
   try {
-    upstream = await fetch(url, {
+    const upstream = await fetch(url, {
       headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
       cache: "no-store",
       redirect: "error",
       signal,
     });
+    return { ok: true, upstream, signal };
   } catch (error) {
     if (
       signal.aborted ||
       (error instanceof Error && error.name === "TimeoutError")
     ) {
-      return authResponse(
-        { message: `${subjectLabel} timed out. Please try again.` },
-        504,
-      );
+      return {
+        ok: false,
+        response: authResponse(
+          { message: `${subjectLabel} timed out. Please try again.` },
+          504,
+        ),
+      };
     }
-    return authResponse(
-      { message: `${subjectLabel} could not be reached.` },
-      502,
-    );
+    return {
+      ok: false,
+      response: authResponse(
+        { message: `${subjectLabel} could not be reached.` },
+        502,
+      ),
+    };
   }
+}
 
+async function handleUpstreamResponse<T>({
+  upstream,
+  signal,
+  token,
+  config,
+  logPrefix,
+  subjectLabel,
+  parseResponse,
+}: {
+  upstream: Response;
+  signal: AbortSignal;
+  token: string;
+  config: StaffConfig;
+  logPrefix: string;
+  subjectLabel: string;
+  parseResponse: (body: unknown) => T | null;
+}) {
   if (upstream.status === 401) {
     // A session verified here can be rejected by a differently configured backend.
     // Recheck expiry before deciding whether the user's dashboard session is invalid.

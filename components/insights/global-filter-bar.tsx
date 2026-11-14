@@ -79,48 +79,15 @@ export function GlobalFilterBar({
   return (
     <Card>
       <CardContent className="space-y-4 pt-5">
-        <div className="flex flex-col justify-between gap-2 border-b border-pink-50 pb-3 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2">
-            <Filter className="size-4 text-[#fb7185]" aria-hidden="true" />
-            <h2 className="text-sm font-bold tracking-wide text-slate-800 uppercase">
-              Filter Dimensions
-            </h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600">
-            <span className="mr-1 hidden text-[11px] text-slate-400 md:inline">
-              Quick Presets:
-            </span>
-            {datePresets.map((preset) => {
-              const range = buildPresetRange(preset.id, today);
-              const isCurrent =
-                filters.from === range.from && filters.to === range.to;
-              return (
-                <Button
-                  key={preset.id}
-                  type="button"
-                  size="xs"
-                  variant={isCurrent ? "gradient" : "secondary"}
-                  disabled={loading}
-                  onClick={() => applyPreset(preset.id)}
-                >
-                  {preset.label}
-                </Button>
-              );
-            })}
-            {showDevMockToggle && onToggleDevMock ? (
-              <Button
-                type="button"
-                size="xs"
-                variant={useDevMock ? "gradient" : "outline"}
-                onClick={() => onToggleDevMock(!useDevMock)}
-                title="Local development preview using synthetic aggregate counts"
-              >
-                <Sparkles className="size-3" aria-hidden="true" />
-                {useDevMock ? "Sample data: On" : "Preview sample data"}
-              </Button>
-            ) : null}
-          </div>
-        </div>
+        <FilterPresetHeader
+          filters={filters}
+          today={today}
+          loading={loading}
+          onApplyPreset={applyPreset}
+          showDevMockToggle={showDevMockToggle}
+          useDevMock={useDevMock}
+          onToggleDevMock={onToggleDevMock}
+        />
 
         <form
           className="space-y-4"
@@ -181,78 +148,170 @@ export function GlobalFilterBar({
               options={PAUSED_OPTIONS}
               onChange={(value) => setDraft({ ...draft, paused: value })}
             />
-            <label className="grid gap-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
-              Interest tag
-              <input
-                list="cupid-interest-options"
-                className="h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium normal-case text-slate-800 placeholder:text-slate-400 focus-visible:border-[#fb7185] focus-visible:ring-2 focus-visible:ring-[#fb7185]/20 focus-visible:outline-none"
-                value={draft.interest}
-                placeholder="e.g. food-coffee"
-                onChange={(event) =>
-                  setDraft({ ...draft, interest: event.target.value })
-                }
-              />
-              <datalist id="cupid-interest-options">
-                {INTEREST_OPTIONS.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </datalist>
-            </label>
+            <InterestTagField
+              value={draft.interest}
+              onChange={(value) => setDraft({ ...draft, interest: value })}
+            />
           </div>
 
-          <div className="flex flex-col justify-between gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {activeChips.length > 0 ? (
-                <>
-                  <span className="mr-1 text-[11px] font-semibold text-slate-400">
-                    Active:
-                  </span>
-                  {activeChips.map((chip) => (
-                    <Badge key={chip.key} variant="soft" className="pr-1.5">
-                      <span>
-                        {chip.name}: {chip.label}
-                      </span>
-                      <button
-                        type="button"
-                        className="ml-0.5 inline-flex size-4 items-center justify-center rounded-full text-[#fb7185] hover:bg-pink-100 hover:text-[#db2777]"
-                        onClick={() => removeChip(chip.key)}
-                        aria-label={`Remove ${chip.name} filter`}
-                      >
-                        <X className="size-3" aria-hidden="true" />
-                      </button>
-                    </Badge>
-                  ))}
-                </>
-              ) : null}
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              <Button
-                type="button"
-                size="lg"
-                variant="ghost"
-                disabled={loading}
-                onClick={handleReset}
-                title="Reset all filters"
-              >
-                <RotateCcw className="size-3.5" aria-hidden="true" />
-                Reset filters
-              </Button>
-              <Button
-                type="submit"
-                size="lg"
-                variant="gradient"
-                disabled={loading}
-              >
-                {loading ? "Updating…" : "Apply filters"}
-              </Button>
-            </div>
-          </div>
+          <FilterActionsFooter
+            activeChips={activeChips}
+            loading={loading}
+            onRemoveChip={removeChip}
+            onReset={handleReset}
+          />
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function FilterPresetHeader({
+  filters,
+  today,
+  loading,
+  onApplyPreset,
+  showDevMockToggle,
+  useDevMock,
+  onToggleDevMock,
+}: {
+  filters: InsightsFilters;
+  today: string;
+  loading: boolean;
+  onApplyPreset: (preset: DatePreset) => void;
+  showDevMockToggle: boolean;
+  useDevMock: boolean;
+  onToggleDevMock?: (enabled: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col justify-between gap-2 border-b border-pink-50 pb-3 sm:flex-row sm:items-center">
+      <div className="flex items-center gap-2">
+        <Filter className="size-4 text-[#fb7185]" aria-hidden="true" />
+        <h2 className="text-sm font-bold tracking-wide text-slate-800 uppercase">
+          Filter Dimensions
+        </h2>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600">
+        <span className="mr-1 hidden text-[11px] text-slate-400 md:inline">
+          Quick Presets:
+        </span>
+        {datePresets.map((preset) => {
+          const range = buildPresetRange(preset.id, today);
+          const isCurrent =
+            filters.from === range.from && filters.to === range.to;
+          return (
+            <Button
+              key={preset.id}
+              type="button"
+              size="xs"
+              variant={isCurrent ? "gradient" : "secondary"}
+              disabled={loading}
+              onClick={() => onApplyPreset(preset.id)}
+            >
+              {preset.label}
+            </Button>
+          );
+        })}
+        {showDevMockToggle && onToggleDevMock ? (
+          <Button
+            type="button"
+            size="xs"
+            variant={useDevMock ? "gradient" : "outline"}
+            onClick={() => onToggleDevMock(!useDevMock)}
+            title="Local development preview using synthetic aggregate counts"
+          >
+            <Sparkles className="size-3" aria-hidden="true" />
+            {useDevMock ? "Sample data: On" : "Preview sample data"}
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function InterestTagField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
+      Interest tag
+      <input
+        list="cupid-interest-options"
+        className="h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium normal-case text-slate-800 placeholder:text-slate-400 focus-visible:border-[#fb7185] focus-visible:ring-2 focus-visible:ring-[#fb7185]/20 focus-visible:outline-none"
+        value={value}
+        placeholder="e.g. food-coffee"
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <datalist id="cupid-interest-options">
+        {INTEREST_OPTIONS.map(([optValue, optLabel]) => (
+          <option key={optValue} value={optValue}>
+            {optLabel}
+          </option>
+        ))}
+      </datalist>
+    </label>
+  );
+}
+
+function FilterActionsFooter({
+  activeChips,
+  loading,
+  onRemoveChip,
+  onReset,
+}: {
+  activeChips: { key: keyof InsightsFilters; name: string; label: string }[];
+  loading: boolean;
+  onRemoveChip: (key: keyof InsightsFilters) => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="flex flex-col justify-between gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {activeChips.length > 0 ? (
+          <>
+            <span className="mr-1 text-[11px] font-semibold text-slate-400">
+              Active:
+            </span>
+            {activeChips.map((chip) => (
+              <Badge key={chip.key} variant="soft" className="pr-1.5">
+                <span>
+                  {chip.name}: {chip.label}
+                </span>
+                <button
+                  type="button"
+                  className="ml-0.5 inline-flex size-4 items-center justify-center rounded-full text-[#fb7185] hover:bg-pink-100 hover:text-[#db2777]"
+                  onClick={() => onRemoveChip(chip.key)}
+                  aria-label={`Remove ${chip.name} filter`}
+                >
+                  <X className="size-3" aria-hidden="true" />
+                </button>
+              </Badge>
+            ))}
+          </>
+        ) : null}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        <Button
+          type="button"
+          size="lg"
+          variant="ghost"
+          disabled={loading}
+          onClick={onReset}
+          title="Reset all filters"
+        >
+          <RotateCcw className="size-3.5" aria-hidden="true" />
+          Reset filters
+        </Button>
+        <Button type="submit" size="lg" variant="gradient" disabled={loading}>
+          {loading ? "Updating…" : "Apply filters"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
