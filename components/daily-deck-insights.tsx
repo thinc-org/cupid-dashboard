@@ -1,259 +1,220 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import type { DailyDeckInsights } from "@/lib/insights/daily-decks";
+import {
+  readDailyDeckInsights,
+  type DailyDeckDay,
+} from "@/lib/insights/daily-decks";
+import {
+  buildInsightsQueryString,
+  defaultInsightsFilters,
+  type InsightsFilters,
+} from "@/lib/insights/filters";
+import { useInsightsQuery } from "@/lib/insights/use-insights-query";
+import { ChartCard } from "./insights/chart-card";
+import {
+  VerticalBarChart,
+  type BarChartCategory,
+} from "./insights/charts/bar-chart";
+import { formatCount, formatDecimal } from "./insights/formatters";
 
-type Filters = {
-  from: string;
-  to: string;
-  faculty: string;
-  year: string;
-  gender: string;
-  relationshipGoal: string;
-  onboarded: string;
-  paused: string;
-  interest: string;
+type DailyDeckInsightsPanelProps = {
+  filters?: InsightsFilters;
+  onLoadingChange?: (loading: boolean) => void;
 };
 
-const genders = [
-  ["female", "Female"],
-  ["male", "Male"],
-  ["non-binary", "Non-binary"],
-  ["other", "Other"],
-] as const;
-
-const relationshipGoals = [
-  ["long-term-partner", "Long-term partner"],
-  ["long-term-but-casual-ok", "Long-term, casual OK"],
-  ["casual-but-long-term-ok", "Casual, long-term OK"],
-  ["casual-fun", "Casual fun"],
-  ["new-friends", "New friends"],
-  ["still-figuring-it-out", "Still figuring it out"],
-] as const;
-
-export function DailyDeckInsightsPanel() {
-  const [filters, setFilters] = useState<Filters | null>(null);
-  const [insights, setInsights] = useState<DailyDeckInsights | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+export function DailyDeckInsightsPanel({
+  filters: externalFilters,
+  onLoadingChange,
+}: DailyDeckInsightsPanelProps) {
+  const [fallbackFilters, setFallbackFilters] =
+    useState<InsightsFilters | null>(null);
 
   useEffect(() => {
-    const to = bangkokToday();
-    setFilters({
-      from: shiftIsoDate(to, -13),
-      to,
-      faculty: "",
-      year: "",
-      gender: "",
-      relationshipGoal: "",
-      onboarded: "",
-      paused: "",
-      interest: "",
-    });
-  }, []);
+    if (!externalFilters) {
+      setFallbackFilters(defaultInsightsFilters());
+    }
+  }, [externalFilters]);
 
-  useEffect(() => {
-    if (!filters) return;
-    let active = true;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
-    setLoading(true);
-    setError("");
-    void (async () => {
-      try {
-        const response = await fetch(
-          `/api/insights/daily-decks?${queryString(filters)}`,
-          {
-            credentials: "same-origin",
-            signal: controller.signal,
-          },
-        );
-        const body = await response.json().catch(() => null);
-        if (!active) return;
-        if (!response.ok) {
-          setInsights(null);
-          setError(
-            typeof body?.message === "string"
-              ? body.message
-              : "Deck insights could not be loaded.",
-          );
-          return;
-        }
-        if (
-          !body ||
-          !Array.isArray(body.days) ||
-          typeof body.minimumBucket !== "number"
-        ) {
-          setInsights(null);
-          setError("Deck insights returned an unexpected response.");
-          return;
-        }
-        setInsights({ minimumBucket: body.minimumBucket, days: body.days });
-      } catch {
-        if (active) {
-          setInsights(null);
-          setError(
-            controller.signal.aborted
-              ? "Deck insights took too long to load. Please try again."
-              : "Deck insights could not be reached.",
-          );
-        }
-      } finally {
-        clearTimeout(timeout);
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [filters]);
+  const activeFilters = externalFilters ?? fallbackFilters;
+  const requestUrl = activeFilters
+    ? `/api/insights/daily-decks?${buildInsightsQueryString(activeFilters)}`
+    : null;
 
-  if (!filters) return <p className="mt-8">Loading deck insights.</p>;
+  const {
+    data: insights,
+    error,
+    loading,
+  } = useInsightsQuery(
+    requestUrl,
+    readDailyDeckInsights,
+    { subject: "Deck insights" },
+    onLoadingChange,
+  );
+
+  if (!activeFilters || loading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
+        {[1, 2].map((slot) => (
+          <div
+            key={slot}
+            className="h-52 animate-pulse rounded-xl border border-border bg-card"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        className="rounded-xl border border-destructive/30 bg-card p-5 text-sm text-destructive"
+        role="alert"
+      >
+        {error}
+      </div>
+    );
+  }
+
+  if (!insights) return null;
+
+  const dates = insights.days.map((day) => day.date);
+  const categories = dates.map((date) => ({
+    key: date,
+    label: date,
+    shortLabel: date.slice(5),
+  }));
+  const byDate = new Map(insights.days.map((day) => [day.date, day]));
 
   return (
-    <section className="mt-8">
-      <h2 className="text-2xl font-semibold">Daily decks</h2>
-      <p className="mt-2 text-muted-foreground">
-        Counts are for the person who received the deck. Days with fewer than
-        five decks are hidden. Pass and like are not shown separately.
+    <div className="space-y-6">
+      <p className="text-xs text-muted-foreground">
+        Metrics reflect deck recipients per day.
       </p>
-      <form
-        className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const data = new FormData(event.currentTarget);
-          setFilters({
-            from: String(data.get("from") ?? ""),
-            to: String(data.get("to") ?? ""),
-            faculty: String(data.get("faculty") ?? ""),
-            year: String(data.get("year") ?? ""),
-            gender: String(data.get("gender") ?? ""),
-            relationshipGoal: String(data.get("relationshipGoal") ?? ""),
-            onboarded: String(data.get("onboarded") ?? ""),
-            paused: String(data.get("paused") ?? ""),
-            interest: String(data.get("interest") ?? ""),
-          });
-        }}
-      >
-        <Field
-          label="From"
-          name="from"
-          type="date"
-          defaultValue={filters.from}
-        />
-        <Field label="To" name="to" type="date" defaultValue={filters.to} />
-        <Field
-          label="Faculty"
-          name="faculty"
-          defaultValue={filters.faculty}
-          placeholder="engineering"
-        />
-        <Select
-          label="Year"
-          name="year"
-          defaultValue={filters.year}
-          options={["1", "2", "3", "4", "5", "6"].map((year) => [year, year])}
-        />
-        <Select
-          label="Gender"
-          name="gender"
-          defaultValue={filters.gender}
-          options={genders}
-        />
-        <Select
-          label="Relationship goal"
-          name="relationshipGoal"
-          defaultValue={filters.relationshipGoal}
-          options={relationshipGoals}
-        />
-        <Select
-          label="Onboarding"
-          name="onboarded"
-          defaultValue={filters.onboarded}
-          options={[
-            ["onboarded", "Onboarded"],
-            ["not-onboarded", "Not onboarded"],
-          ]}
-        />
-        <Select
-          label="Account"
-          name="paused"
-          defaultValue={filters.paused}
-          options={[
-            ["active", "Active"],
-            ["paused", "Paused now"],
-          ]}
-        />
-        <Field
-          label="Interest tag"
-          name="interest"
-          defaultValue={filters.interest}
-          placeholder="one tag"
-        />
-        <div className="flex items-end">
-          <Button type="submit" disabled={loading}>
-            {loading ? "Loading…" : "Apply filters"}
-          </Button>
-        </div>
-      </form>
-      {error ? (
-        <p className="mt-4 text-destructive" role="alert">
-          {error}
-        </p>
+
+      <DailyDeckChartsGrid
+        categories={categories}
+        byDate={byDate}
+        empty={dates.length === 0}
+      />
+
+      {insights.days.length > 0 ? (
+        <DailyDeckBreakdownTable days={insights.days} />
       ) : null}
-      {!loading && insights ? <DeckCharts insights={insights} /> : null}
-    </section>
+    </div>
   );
 }
 
-function DeckCharts({ insights }: { insights: DailyDeckInsights }) {
+function DailyDeckChartsGrid({
+  categories,
+  byDate,
+  empty,
+}: {
+  categories: BarChartCategory[];
+  byDate: Map<string, DailyDeckDay>;
+  empty: boolean;
+}) {
   return (
-    <div className="mt-6 grid gap-6">
-      <Chart
-        title="Decks generated"
-        points={insights.days.map((day) => ({
-          date: day.date,
-          value: day.decksGenerated,
-        }))}
-      />
-      <Chart
-        title="Total candidate slots"
-        points={insights.days.map((day) => ({
-          date: day.date,
-          value: day.totalCandidateSlots,
-        }))}
-      />
-      <Chart
-        title="Average deck size"
-        points={insights.days.map((day) => ({
-          date: day.date,
-          value: day.averageDeckSize,
-        }))}
-        format={formatDecimal}
-      />
-      <Chart
-        title="Completed decks"
-        points={insights.days.map((day) => ({
-          date: day.date,
-          value: day.completedDecks,
-        }))}
-      />
-      <Chart
+    <div className="grid items-start gap-6 lg:grid-cols-2">
+      <ChartCard title="Decks generated" empty={empty}>
+        <VerticalBarChart
+          title="Decks generated"
+          highlightPeak
+          categories={categories}
+          series={[
+            {
+              label: "Decks generated",
+              colorClass: "bg-[#fb7185]",
+              getColorClass: (_key, isPeak) =>
+                isPeak ? "bg-[#f43f5e]" : "bg-[#fb7185]",
+              getValue: (date) => byDate.get(date)?.decksGenerated ?? 0,
+            },
+          ]}
+        />
+      </ChartCard>
+
+      <ChartCard title="Total candidate slots" empty={empty}>
+        <VerticalBarChart
+          title="Total candidate slots"
+          highlightPeak
+          categories={categories}
+          series={[
+            {
+              label: "Candidate slots",
+              colorClass: "bg-[#f472b6]",
+              getColorClass: (_key, isPeak) =>
+                isPeak ? "bg-[#db2777]" : "bg-[#f472b6]",
+              getValue: (date) => byDate.get(date)?.totalCandidateSlots ?? 0,
+            },
+          ]}
+        />
+      </ChartCard>
+
+      <ChartCard title="Average deck size" empty={empty}>
+        <VerticalBarChart
+          title="Average deck size"
+          categories={categories}
+          series={[
+            {
+              label: "Average size",
+              colorClass: "bg-[#f9a8d4]",
+              getValue: (date) => byDate.get(date)?.averageDeckSize ?? 0,
+              formatValue: formatDecimal,
+            },
+          ]}
+        />
+      </ChartCard>
+
+      <ChartCard title="Completed decks" empty={empty}>
+        <VerticalBarChart
+          title="Completed decks"
+          highlightPeak
+          categories={categories}
+          series={[
+            {
+              label: "Completed decks",
+              colorClass: "bg-[#fb7185]",
+              getColorClass: (_key, isPeak) =>
+                isPeak ? "bg-[#f43f5e]" : "bg-[#fb7185]",
+              getValue: (date) => byDate.get(date)?.completedDecks ?? 0,
+            },
+          ]}
+        />
+      </ChartCard>
+
+      <ChartCard
+        className="lg:col-span-2"
         title="Completion rate"
-        points={insights.days.map((day) => ({
-          date: day.date,
-          value: day.completionRate * 100,
-        }))}
-        format={(value) => `${formatDecimal(value)}%`}
-      />
-      <div className="overflow-x-auto" hidden={insights.days.length === 0}>
+        description="Share of generated decks fully reviewed each day."
+        empty={empty}
+      >
+        <VerticalBarChart
+          title="Completion rate"
+          categories={categories}
+          maxValue={100}
+          series={[
+            {
+              label: "Completion rate",
+              colorClass: "bg-[#f472b6]",
+              getValue: (date) =>
+                (byDate.get(date)?.completionRate ?? 0) * 100,
+              formatValue: (value) => `${formatDecimal(value)}%`,
+            },
+          ]}
+        />
+      </ChartCard>
+    </div>
+  );
+}
+
+function DailyDeckBreakdownTable({ days }: { days: DailyDeckDay[] }) {
+  return (
+    <ChartCard title="Daily deck breakdown">
+      <div className="overflow-x-auto">
         <table className="w-full min-w-[40rem] text-left text-sm">
           <caption className="sr-only">Daily deck counts</caption>
           <thead>
-            <tr className="border-b">
+            <tr className="border-b border-border text-xs text-muted-foreground">
               <th className="py-2 pr-3 font-medium">Date</th>
               <th className="py-2 pr-3 font-medium">Decks</th>
               <th className="py-2 pr-3 font-medium">Slots</th>
@@ -262,16 +223,22 @@ function DeckCharts({ insights }: { insights: DailyDeckInsights }) {
               <th className="py-2 font-medium">Completion</th>
             </tr>
           </thead>
-          <tbody>
-            {insights.days.map((day) => (
-              <tr key={day.date} className="border-b">
-                <td className="py-2 pr-3">{day.date}</td>
-                <td className="py-2 pr-3">{day.decksGenerated}</td>
-                <td className="py-2 pr-3">{day.totalCandidateSlots}</td>
+          <tbody className="divide-y divide-border/60 tabular-nums">
+            {days.map((day) => (
+              <tr key={day.date}>
+                <td className="py-2 pr-3 font-medium">{day.date}</td>
+                <td className="py-2 pr-3">
+                  {formatCount(day.decksGenerated)}
+                </td>
+                <td className="py-2 pr-3">
+                  {formatCount(day.totalCandidateSlots)}
+                </td>
                 <td className="py-2 pr-3">
                   {formatDecimal(day.averageDeckSize)}
                 </td>
-                <td className="py-2 pr-3">{day.completedDecks}</td>
+                <td className="py-2 pr-3">
+                  {formatCount(day.completedDecks)}
+                </td>
                 <td className="py-2">
                   {formatDecimal(day.completionRate * 100)}%
                 </td>
@@ -280,170 +247,6 @@ function DeckCharts({ insights }: { insights: DailyDeckInsights }) {
           </tbody>
         </table>
       </div>
-    </div>
-  );
-}
-
-function Chart({
-  title,
-  points,
-  format = (value: number) => String(Math.round(value)),
-}: {
-  title: string;
-  points: { date: string; value: number }[];
-  format?: (value: number) => string;
-}) {
-  const peak = Math.max(...points.map((point) => point.value), 1);
-  const width = points.length * 48;
-  return (
-    <figure>
-      <figcaption className="font-medium">{title}</figcaption>
-      {points.length === 0 ? (
-        <div
-          className="relative mt-2 flex h-36 items-center justify-center text-sm text-muted-foreground"
-          role="img"
-          aria-label={`${title}: no data available`}
-        >
-          <svg
-            className="absolute inset-0 h-full w-full stroke-border"
-            aria-hidden="true"
-          >
-            {["12.5%", "37.5%", "62.5%"].map((y) => (
-              <line
-                key={y}
-                x1="0"
-                x2="100%"
-                y1={y}
-                y2={y}
-                strokeDasharray="4 4"
-              />
-            ))}
-            <line x1="0" x2="100%" y1="87.5%" y2="87.5%" />
-          </svg>
-          <span className="relative bg-background px-3">No data</span>
-        </div>
-      ) : (
-        <div className="mt-2 overflow-x-auto">
-          <svg
-            viewBox={`0 0 ${width} 140`}
-            className="h-36"
-            style={{ width }}
-            role="img"
-            aria-label={title}
-          >
-            {points.map((point, index) => {
-              const height = (point.value / peak) * 96;
-              return (
-                <g key={point.date} transform={`translate(${index * 48 + 8} 0)`}>
-                  <rect
-                    x="8"
-                    y={112 - height}
-                    width="24"
-                    height={height}
-                    rx="4"
-                    className="fill-primary"
-                  />
-                  <text
-                    x="20"
-                    y="128"
-                    textAnchor="middle"
-                    className="fill-muted-foreground text-[8px]"
-                  >
-                    {point.date.slice(5)}
-                  </text>
-                  <title>{`${point.date}: ${format(point.value)}`}</title>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-      )}
-    </figure>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type = "text",
-  defaultValue,
-  placeholder,
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  defaultValue: string;
-  placeholder?: string;
-}) {
-  return (
-    <label className="grid gap-1 text-sm">
-      {label}
-      <input
-        className="h-9 rounded-lg border bg-background px-2"
-        name={name}
-        type={type}
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-      />
-    </label>
-  );
-}
-
-function Select({
-  label,
-  name,
-  defaultValue,
-  options,
-}: {
-  label: string;
-  name: string;
-  defaultValue: string;
-  options: readonly (readonly [string, string])[];
-}) {
-  return (
-    <label className="grid gap-1 text-sm">
-      {label}
-      <select
-        className="h-9 rounded-lg border bg-background px-2"
-        name={name}
-        defaultValue={defaultValue}
-      >
-        <option value="">Any</option>
-        {options.map(([value, text]) => (
-          <option key={value} value={value}>
-            {text}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function queryString(filters: Filters): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) {
-    if (value) params.set(key, value);
-  }
-  return params.toString();
-}
-
-function bangkokToday(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Bangkok",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
-
-function shiftIsoDate(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function formatDecimal(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(
-    value,
+    </ChartCard>
   );
 }
