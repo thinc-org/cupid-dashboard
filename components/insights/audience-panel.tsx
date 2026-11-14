@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { readAudienceInsights } from "@/lib/insights/audience";
 import {
   buildInsightsQueryString,
@@ -26,6 +27,12 @@ export function AudiencePanel({
   const mockParam =
     useDevMock && process.env.NODE_ENV !== "production" ? "&mock=1" : "";
   const url = `/api/insights/users?${buildInsightsQueryString(filters)}${mockParam}`;
+  const singleOnboardingFilter =
+    filters.onboarded === "onboarded" || filters.onboarded === "not-onboarded";
+  const parseAudience = useCallback(
+    (body: unknown) => readAudienceInsights(body, { singleOnboardingFilter }),
+    [singleOnboardingFilter],
+  );
 
   const {
     data: insights,
@@ -33,7 +40,7 @@ export function AudiencePanel({
     loading,
   } = useInsightsQuery(
     url,
-    readAudienceInsights,
+    parseAudience,
     { subject: "Audience insights" },
     onLoadingChange,
   );

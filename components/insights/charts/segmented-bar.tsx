@@ -1,3 +1,4 @@
+import { ROLLED_OTHER_KEY } from "@/lib/insights/enums";
 import { formatCount, formatPercent } from "../formatters";
 import type { LabeledBucket } from "./horizontal-bar-list";
 
@@ -52,7 +53,7 @@ export function SegmentedBar({ items }: SegmentedBarProps) {
         {items.map((item, index) => {
           const share = total > 0 ? (item.count / total) * 100 : 0;
           const palette =
-            item.key === "other"
+            item.key === ROLLED_OTHER_KEY
               ? otherPalette
               : segmentPalettes[index % segmentPalettes.length];
           return (
@@ -69,7 +70,7 @@ export function SegmentedBar({ items }: SegmentedBarProps) {
       <ul className="space-y-2.5">
         {items.map((item, index) => {
           const palette =
-            item.key === "other"
+            item.key === ROLLED_OTHER_KEY
               ? otherPalette
               : segmentPalettes[index % segmentPalettes.length];
           return (

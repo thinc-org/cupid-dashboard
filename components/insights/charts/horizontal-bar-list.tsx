@@ -1,3 +1,4 @@
+import { ROLLED_OTHER_KEY } from "@/lib/insights/enums";
 import { cn } from "@/lib/utils";
 import { formatCount, formatPercent } from "../formatters";
 
@@ -36,7 +37,7 @@ export function HorizontalBarList({
           total > 0 && item.count > 0
             ? Math.min(Math.max((item.count / total) * 100, 1.5), 100)
             : 0;
-        const isOther = item.key === "other";
+        const isOther = item.key === ROLLED_OTHER_KEY;
         const barColor = isOther
           ? "bg-slate-300"
           : barShades[index % barShades.length];

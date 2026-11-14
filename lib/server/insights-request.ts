@@ -1,62 +1,6 @@
 import "server-only";
-import type { NextRequest, NextResponse } from "next/server";
-import { authResponse, setSessionCookie } from "@/lib/server/auth-response";
-import {
-  getStaffConfig,
-  STAFF_SESSION_COOKIE,
-  StaffAccessDenied,
-  verifyStaffSession,
-  type StaffConfig,
-} from "@/lib/server/staff-auth";
-
-export async function authenticateInsightsRequest(
-  request: NextRequest,
-): Promise<
-  | { ok: true; token: string; config: StaffConfig }
-  | { ok: false; response: NextResponse }
-> {
-  const token = request.cookies.get(STAFF_SESSION_COOKIE)?.value;
-  if (!token) {
-    return {
-      ok: false,
-      response: authResponse({ message: "Please sign in." }, 401),
-    };
-  }
-
-  let config: StaffConfig;
-  try {
-    config = getStaffConfig();
-  } catch {
-    return {
-      ok: false,
-      response: authResponse(
-        { message: "Staff sign-in is not configured." },
-        503,
-      ),
-    };
-  }
-
-  try {
-    await verifyStaffSession(token, config);
-    return { ok: true, token, config };
-  } catch (error) {
-    const denied = error instanceof StaffAccessDenied;
-    return {
-      ok: false,
-      response: setSessionCookie(
-        authResponse(
-          {
-            message: denied
-              ? "This Google account is not allowed to use the dashboard."
-              : "Your session is no longer valid. Please sign in again.",
-          },
-          denied ? 403 : 401,
-        ),
-        "",
-      ),
-    };
-  }
-}
+import type { NextResponse } from "next/server";
+import { authResponse } from "@/lib/server/auth-response";
 
 export function resolveUpstreamUrl(
   apiUrl: string,

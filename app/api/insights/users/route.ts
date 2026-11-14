@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import {
   audienceInsightsQuery,
+  hasSingleOnboardingFilter,
   readAudienceInsights,
 } from "@/lib/insights/audience";
 import { buildDevMockAudienceInsights } from "@/lib/insights/mock-audience";
@@ -16,7 +17,10 @@ export async function GET(request: NextRequest) {
     logPrefix: "audience-insights",
     subjectLabel: "Audience insights",
     parseQuery: audienceInsightsQuery,
-    parseResponse: readAudienceInsights,
+    parseResponse: (body, query) =>
+      readAudienceInsights(body, {
+        singleOnboardingFilter: hasSingleOnboardingFilter(query),
+      }),
     mockHandler: (req, query) => {
       if (process.env.NODE_ENV === "production") return null;
       const wantsMock =

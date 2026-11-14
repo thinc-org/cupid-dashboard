@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { ROLLED_OTHER_KEY } from "@/lib/insights/enums";
 import { cn } from "@/lib/utils";
 import { formatCount, formatPercent } from "../formatters";
 import type { LabeledBucket } from "./horizontal-bar-list";
@@ -18,7 +19,7 @@ export function MetricList({ items, shareDenominator }: MetricListProps) {
     <ul className="space-y-3">
       {items.map((item, index) => {
         const isOpenDeck = item.key === "no-restriction";
-        const isOther = item.key === "other";
+        const isOther = item.key === ROLLED_OTHER_KEY;
         const widthPercent =
           total > 0 && item.count > 0
             ? Math.min(Math.max((item.count / total) * 100, 1.5), 100)

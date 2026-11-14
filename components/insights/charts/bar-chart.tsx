@@ -1,3 +1,4 @@
+import { ROLLED_OTHER_KEY } from "@/lib/insights/enums";
 import { cn } from "@/lib/utils";
 import { formatCount } from "../formatters";
 
@@ -161,7 +162,7 @@ function BarCategoryColumn({
             ? item.formatValue(val)
             : formatCount(val);
           const barColor =
-            !isDual && category.key === "other"
+            !isDual && category.key === ROLLED_OTHER_KEY
               ? "bg-slate-300"
               : item.getColorClass
                 ? item.getColorClass(category.key, isPeak)

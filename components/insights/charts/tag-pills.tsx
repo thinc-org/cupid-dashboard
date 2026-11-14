@@ -1,3 +1,4 @@
+import { ROLLED_OTHER_KEY } from "@/lib/insights/enums";
 import { formatCount } from "../formatters";
 import type { LabeledBucket } from "./horizontal-bar-list";
 
@@ -9,7 +10,7 @@ export function TagPills({ items }: TagPillsProps) {
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => {
-        const isOther = item.key === "other";
+        const isOther = item.key === ROLLED_OTHER_KEY;
         return (
           <span
             key={item.key}

@@ -1,5 +1,7 @@
 export type EnumOption = readonly [value: string, label: string];
 
+export const ROLLED_OTHER_KEY = "rolled-other";
+
 export const FACULTY_OPTIONS: readonly EnumOption[] = [
   ["education", "Education"],
   ["psychology", "Psychology"],
@@ -231,7 +233,7 @@ export function formatInsightLabel(
   dimension: LabelDimension,
   rawKey: string,
 ): string {
-  if (rawKey === "other") return "Other (<5 rolled)";
+  if (rawKey === ROLLED_OTHER_KEY) return "Other (<5 rolled)";
   if (rawKey === "no-restriction") return "No restrictions (Open Deck)";
   if (rawKey === "unknown") return "Unknown";
 

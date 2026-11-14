@@ -44,16 +44,24 @@ export function useInsightsQuery<T>(
           credentials: "same-origin",
           signal: controller.signal,
         });
-        const body = await response.json().catch(() => null);
+        let body: unknown = null;
+        try {
+          body = await response.json();
+        } catch (err) {
+          if (controller.signal.aborted) throw err;
+        }
         if (!active) return;
 
         if (!response.ok) {
-          setData(null);
-          setError(
-            typeof body?.message === "string"
+          const message =
+            body &&
+            typeof body === "object" &&
+            "message" in body &&
+            typeof body.message === "string"
               ? body.message
-              : (fallbackError ?? `${subject} could not be loaded.`),
-          );
+              : (fallbackError ?? `${subject} could not be loaded.`);
+          setData(null);
+          setError(message);
           return;
         }
 

@@ -77,6 +77,11 @@ export function FilterFormFields({ draft, onChange }: FilterFormFieldsProps) {
   );
 }
 
+const fieldLabelClass =
+  "grid min-w-0 content-end gap-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase";
+const fieldControlClass =
+  "h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold normal-case text-slate-800 focus-visible:border-[#fb7185] focus-visible:ring-2 focus-visible:ring-[#fb7185]/20 focus-visible:outline-none";
+
 function DateInput({
   label,
   value,
@@ -87,11 +92,11 @@ function DateInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
+    <label className={fieldLabelClass}>
       {label}
       <input
         type="date"
-        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold normal-case text-slate-800 tabular-nums focus-visible:border-[#fb7185] focus-visible:ring-2 focus-visible:ring-[#fb7185]/20 focus-visible:outline-none"
+        className={`${fieldControlClass} tabular-nums`}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -111,10 +116,10 @@ function SelectField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
+    <label className={fieldLabelClass}>
       {label}
       <select
-        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold normal-case text-slate-800 focus-visible:border-[#fb7185] focus-visible:ring-2 focus-visible:ring-[#fb7185]/20 focus-visible:outline-none"
+        className={fieldControlClass}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >
@@ -137,11 +142,11 @@ function InterestTagField({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-[11px] font-bold tracking-wider text-slate-600 uppercase">
+    <label className={fieldLabelClass}>
       Interest tag
       <input
         list="cupid-interest-options"
-        className="h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium normal-case text-slate-800 placeholder:text-slate-400 focus-visible:border-[#fb7185] focus-visible:ring-2 focus-visible:ring-[#fb7185]/20 focus-visible:outline-none"
+        className={`${fieldControlClass} placeholder:font-medium placeholder:text-slate-400`}
         value={value}
         placeholder="e.g. food-coffee"
         onChange={(event) => onChange(event.target.value)}

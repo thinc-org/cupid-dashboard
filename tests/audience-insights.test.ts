@@ -6,6 +6,7 @@ import {
   audienceInsightsQuery,
   readAudienceInsights,
 } from "../lib/insights/audience";
+import { formatInsightLabel, ROLLED_OTHER_KEY } from "../lib/insights/enums";
 import { buildPresetRange } from "../lib/insights/filters";
 import { buildDevMockAudienceInsights } from "../lib/insights/mock-audience";
 import {
@@ -126,7 +127,7 @@ test("date presets calculate Bangkok windows within 366 days", () => {
   });
 });
 
-test("audience insights enforce minimumBucket >= 5 and roll small buckets into other", () => {
+test("audience insights enforce minimumBucket >= 5 and roll small buckets into rolled-other", () => {
   assert.equal(
     readAudienceInsights(makeValidPayload({ minimumBucket: 4 })),
     null,
@@ -178,27 +179,28 @@ test("audience insights enforce minimumBucket >= 5 and roll small buckets into o
   // Daily points < 5 dropped and sorted chronologically
   assert.deepEqual(parsed.signupsPerDay, [{ date: "2026-11-01", count: 8 }]);
   assert.deepEqual(parsed.onboardedPerDay, [{ date: "2026-11-02", count: 6 }]);
-  // Binary cards hidden when either side < 5; totals.users suppressed to prevent differencing leaks
+  // Binary cards hidden when either side < 5; unfiltered totals suppressed to prevent differencing leaks
   assert.equal(parsed.onboardedStatus, null);
   assert.equal(parsed.totals.users, null);
+  assert.equal(parsed.totals.previousUsers, null);
   assert.equal(parsed.pausedStatus, null);
-  // Faculty 3 + 2 = 5 -> rolled into "other"
+  // Faculty 3 + 2 = 5 -> rolled into ROLLED_OTHER_KEY
   assert.deepEqual(parsed.faculty, [
     { key: "engineering", count: 40 },
-    { key: "other", count: 5 },
+    { key: ROLLED_OTHER_KEY, count: 5 },
   ]);
-  // Gender small bucket = 2 (< 5) -> "other" suppressed
+  // Gender small bucket = 2 (< 5) -> rolled-other suppressed when < 5
   assert.deepEqual(parsed.gender, [{ key: "female", count: 30 }]);
-  // Age bands 2 + 3 = 5 -> "other" kept and ordered properly
+  // Age bands 2 + 3 = 5 -> ROLLED_OTHER_KEY kept and ordered properly
   assert.deepEqual(parsed.ageBands.buckets, [
     { key: "18-19", count: 12 },
-    { key: "other", count: 5 },
+    { key: ROLLED_OTHER_KEY, count: 5 },
   ]);
   assert.equal(parsed.ageBands.medianAge, 19.2);
-  // Match filters preserve no-restriction >= 5 and hide < 5
+  // Match filters preserve no-restriction >= 5 and roll small buckets into ROLLED_OTHER_KEY
   assert.deepEqual(parsed.matchFilters.faculties, [
     { key: "no-restriction", count: 40 },
-    { key: "other", count: 7 },
+    { key: ROLLED_OTHER_KEY, count: 7 },
   ]);
   assert.deepEqual(parsed.matchFilters.years, []);
 });
@@ -364,6 +366,116 @@ test("dev mock audience data works outside production and is blocked in producti
         assert.equal(body.minimumBucket, 5);
         assert.ok(body.signupsPerDay.length > 0);
         assert.ok(body.matchFilters.faculties.length > 0);
+      },
+      "",
+    );
+  } finally {
+    env.NODE_ENV = prevNodeEnv;
+  }
+});
+
+test("gender 'other' stays distinct from rolled-other k<5 bucket", () => {
+  const parsed = readAudienceInsights(
+    makeValidPayload({
+      gender: [
+        { key: "female", count: 30 },
+        { key: "other", count: 8 },
+        { key: "non-binary", count: 3 },
+        { key: "unknown", count: 2 },
+      ],
+      matchFilters: {
+        faculties: [{ key: "no-restriction", count: 40 }],
+        years: [{ key: "no-restriction", count: 40 }],
+        genderInterest: [
+          { key: "female", count: 30 },
+          { key: "other", count: 6 },
+        ],
+        relationshipGoals: [{ key: "no-restriction", count: 40 }],
+      },
+    }),
+  );
+
+  assert.ok(parsed);
+  assert.deepEqual(parsed.gender, [
+    { key: "female", count: 30 },
+    { key: "other", count: 8 },
+    { key: ROLLED_OTHER_KEY, count: 5 },
+  ]);
+  assert.deepEqual(parsed.matchFilters.genderInterest, [
+    { key: "female", count: 30 },
+    { key: "other", count: 6 },
+  ]);
+  assert.equal(formatInsightLabel("gender", "other"), "Prefer not to say");
+  assert.equal(
+    formatInsightLabel("gender", ROLLED_OTHER_KEY),
+    "Other (<5 rolled)",
+  );
+  assert.equal(
+    formatInsightLabel("faculty", ROLLED_OTHER_KEY),
+    "Other (<5 rolled)",
+  );
+
+  const rolledSmallOtherGender = readAudienceInsights(
+    makeValidPayload({
+      gender: [
+        { key: "female", count: 30 },
+        { key: "other", count: 3 },
+        { key: "non-binary", count: 2 },
+      ],
+    }),
+  );
+  assert.ok(rolledSmallOtherGender);
+  assert.deepEqual(rolledSmallOtherGender.gender, [
+    { key: "female", count: 30 },
+    { key: ROLLED_OTHER_KEY, count: 5 },
+  ]);
+});
+
+test("single onboarding filter shows cohort totals when >= 5 while unfiltered suppresses both totals", async () => {
+  const payload = makeValidPayload({
+    totals: { users: 50, previousUsers: 40 },
+    onboardedStatus: { onboarded: 50, notOnboarded: 0 },
+  });
+
+  const unfiltered = readAudienceInsights(payload);
+  assert.ok(unfiltered);
+  assert.equal(unfiltered.onboardedStatus, null);
+  assert.deepEqual(unfiltered.totals, { users: null, previousUsers: null });
+
+  const filtered = readAudienceInsights(payload, {
+    singleOnboardingFilter: true,
+  });
+  assert.ok(filtered);
+  assert.equal(filtered.onboardedStatus, null);
+  assert.deepEqual(filtered.totals, { users: 50, previousUsers: 40 });
+
+  const filteredSmallCohort = readAudienceInsights(
+    makeValidPayload({
+      totals: { users: 3, previousUsers: 40 },
+      onboardedStatus: { onboarded: 3, notOnboarded: 0 },
+    }),
+    { singleOnboardingFilter: true },
+  );
+  assert.ok(filteredSmallCohort);
+  assert.deepEqual(filteredSmallCohort.totals, {
+    users: null,
+    previousUsers: 40,
+  });
+
+  const env = process.env as Record<string, string | undefined>;
+  const prevNodeEnv = env.NODE_ENV;
+  try {
+    env.NODE_ENV = "test";
+    await withAudienceSession(
+      "http://localhost:8082/api/insights/users?from=2026-11-01&to=2026-11-14&onboarded=onboarded&mock=1",
+      async (request) => {
+        const response = await getAudienceInsights(request);
+        assert.equal(response.status, 200);
+        const body = await response.json();
+        assert.equal(body.onboardedStatus, null);
+        assert.equal(typeof body.totals.users, "number");
+        assert.ok(body.totals.users >= 5);
+        assert.equal(typeof body.totals.previousUsers, "number");
       },
       "",
     );
