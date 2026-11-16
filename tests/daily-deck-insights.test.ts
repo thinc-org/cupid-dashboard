@@ -10,6 +10,7 @@ import {
   createStaffSession,
   getStaffConfig,
   STAFF_SESSION_COOKIE,
+  STAFF_SESSION_SECONDS,
 } from "../lib/server/staff-auth";
 
 const testSecret =
@@ -335,4 +336,52 @@ test("daily deck route requires a staff session and forwards only the sanitized 
       else process.env[key] = value;
     }
   }
+});
+
+test("upstream 403, 400 validation errors, and invalid 200 JSON map cleanly", async () => {
+  await withInsightSession(async (request) => {
+    globalThis.fetch = async () => new Response("{}", { status: 403 });
+    const forbidden = await getDailyDecks(request);
+    assert.equal(forbidden.status, 403);
+    assert.match((await forbidden.json()).message, /does not have access/i);
+    assert.equal(forbidden.headers.get("Set-Cookie"), null);
+
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify({ message: "from must be before to" }), {
+        status: 400,
+      });
+    const badRequest = await getDailyDecks(request);
+    assert.equal(badRequest.status, 400);
+    assert.equal((await badRequest.json()).message, "from must be before to");
+
+    globalThis.fetch = async () => new Response("not-json", { status: 200 });
+    const invalidJson = await getDailyDecks(request);
+    assert.equal(invalidJson.status, 502);
+    assert.match(
+      (await invalidJson.json()).message,
+      /returned an unexpected response/i,
+    );
+  });
+});
+
+test("upstream 401 when dashboard session expired mid-request returns 401 and clears cookie", async (t) => {
+  await withInsightSession(async (request) => {
+    try {
+      globalThis.fetch = async () => {
+        t.mock.timers.enable({
+          apis: ["Date"],
+          now: Date.now() + (STAFF_SESSION_SECONDS + 10) * 1000,
+        });
+        return new Response("{}", { status: 401 });
+      };
+      const response = await getDailyDecks(request);
+      assert.equal(response.status, 401);
+      assert.match((await response.json()).message, /no longer valid/i);
+      const setCookie = response.headers.get("Set-Cookie") ?? "";
+      assert.match(setCookie, new RegExp(`${STAFF_SESSION_COOKIE}=`));
+      assert.match(setCookie, /Max-Age=0/);
+    } finally {
+      t.mock.timers.reset();
+    }
+  });
 });
