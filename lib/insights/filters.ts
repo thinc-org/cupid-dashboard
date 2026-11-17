@@ -191,6 +191,38 @@ export function isFiniteNonNegative(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
+export function enumerateIsoDates(
+  from: string,
+  to: string,
+  maxDays = 366,
+): string[] {
+  const dates: string[] = [];
+  let cursor = from;
+  while (cursor <= to && dates.length < maxDays) {
+    dates.push(cursor);
+    cursor = shiftIsoDate(cursor, 1);
+  }
+  return dates;
+}
+
+const profileFilterKeys: Array<keyof Omit<InsightsFilters, "from" | "to">> = [
+  "faculty",
+  "year",
+  "gender",
+  "relationshipGoal",
+  "onboarded",
+  "paused",
+  "interest",
+];
+
+export function countActiveProfileFilters(params: URLSearchParams): number {
+  let count = 0;
+  for (const key of profileFilterKeys) {
+    if (params.get(key)) count += 1;
+  }
+  return count;
+}
+
 function optionalText(value: string | null, maxLength: number): string | null {
   const trimmed = value?.trim() ?? "";
   if (trimmed.length > maxLength) return null;

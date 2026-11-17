@@ -8,9 +8,11 @@ import {
   type InsightsFilters,
 } from "@/lib/insights/filters";
 import { AudiencePanel } from "./audience-panel";
+import { EngagementPanel } from "./engagement-panel";
 import { GlobalFilterBar } from "./global-filter-bar";
 
-type DashboardTab = "audience" | "daily-decks";
+type DashboardTab = "audience" | "daily-decks" | "engagement";
+
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -18,8 +20,10 @@ export function InsightsDashboard() {
   const [filters, setFilters] = useState<InsightsFilters | null>(null);
   const [activeTab, setActiveTab] = useState<DashboardTab>("audience");
   const [visitedDailyDecks, setVisitedDailyDecks] = useState(false);
+  const [visitedEngagement, setVisitedEngagement] = useState(false);
   const [audienceLoading, setAudienceLoading] = useState(false);
   const [decksLoading, setDecksLoading] = useState(false);
+  const [engagementLoading, setEngagementLoading] = useState(false);
   const [useDevMock, setUseDevMock] = useState(false);
 
   useEffect(() => {
@@ -34,10 +38,11 @@ export function InsightsDashboard() {
     <div className="mt-6 space-y-6">
       <GlobalFilterBar
         filters={filters}
-        loading={audienceLoading || decksLoading}
+        loading={audienceLoading || decksLoading || engagementLoading}
         onApply={setFilters}
-        showDevMockToggle={isDev && activeTab === "audience"}
-        useDevMock={useDevMock}
+        showDevMockToggle={
+          isDev && (activeTab === "audience" || activeTab === "engagement")
+        }
         onToggleDevMock={setUseDevMock}
       />
 
@@ -69,6 +74,19 @@ export function InsightsDashboard() {
         >
           Daily decks
         </Button>
+        <Button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "engagement"}
+          variant={activeTab === "engagement" ? "gradient" : "ghost"}
+          size="sm"
+          onClick={() => {
+            setActiveTab("engagement");
+            setVisitedEngagement(true);
+          }}
+        >
+          Engagement
+        </Button>
       </div>
 
       <div role="tabpanel" hidden={activeTab !== "audience"}>
@@ -83,6 +101,15 @@ export function InsightsDashboard() {
           <DailyDeckInsightsPanel
             filters={filters}
             onLoadingChange={setDecksLoading}
+          />
+        </div>
+      ) : null}
+      {visitedEngagement ? (
+        <div role="tabpanel" hidden={activeTab !== "engagement"}>
+          <EngagementPanel
+            filters={filters}
+            useDevMock={useDevMock}
+            onLoadingChange={setEngagementLoading}
           />
         </div>
       ) : null}

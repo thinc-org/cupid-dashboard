@@ -57,7 +57,7 @@ export function readTotals(
   return { users, previousUsers };
 }
 
-function readOptionalMinCount(
+export function readOptionalMinCount(
   value: unknown,
   minimumBucket: number,
 ): number | null | undefined {
