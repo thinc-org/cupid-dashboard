@@ -21,7 +21,7 @@ type ProxyInsightsOptions = {
   subjectLabel: string;
   parseQuery: QueryParser;
   parseResponse: (body: unknown, query?: string) => object | null;
-  devMock?: (query: string) => object | null;
+  mockHandler?: (request: NextRequest, query: string) => object | null;
 };
 
 export async function proxyInsightsRequest({
@@ -31,7 +31,7 @@ export async function proxyInsightsRequest({
   subjectLabel,
   parseQuery,
   parseResponse,
-  devMock,
+  mockHandler,
 }: ProxyInsightsOptions) {
   const auth = await authenticateStaffRequest(request);
   if (!auth.ok) return auth.response;
@@ -39,13 +39,8 @@ export async function proxyInsightsRequest({
   const parsed = parseQuery(request.nextUrl.searchParams);
   if (!parsed.ok) return authResponse({ message: parsed.message }, 400);
 
-  if (
-    devMock &&
-    process.env.NODE_ENV !== "production" &&
-    (request.nextUrl.searchParams.get("mock") === "1" ||
-      process.env.CUPID_MOCK_INSIGHTS === "1")
-  ) {
-    const mockData = devMock(parsed.query);
+  if (mockHandler) {
+    const mockData = mockHandler(request, parsed.query);
     if (mockData !== null) {
       const sanitized = parseResponse(mockData, parsed.query);
       if (!sanitized) {

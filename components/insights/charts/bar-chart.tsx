@@ -54,7 +54,7 @@ export function VerticalBarChart({
   const isDual = series.length > 1;
   const { peak, peakKey } = computeBarScale(categories, series, maxValue);
   const minWidthStyle =
-    categories.length > 7
+    categories.length > 14
       ? { minWidth: `${categories.length * (isDual ? 54 : 44)}px` }
       : undefined;
 
@@ -62,7 +62,7 @@ export function VerticalBarChart({
     <div className="space-y-3" role="img" aria-label={title}>
       {isDual ? <BarLegend series={series} /> : null}
 
-      <div className={cn("overflow-x-auto", minWidthStyle && "pb-4")}>
+      <div className="overflow-x-auto">
         <div className="relative w-full" style={minWidthStyle}>
           {/* Continuous horizontal gridlines aligned with the 135px bar plot area. */}
           <div
@@ -76,7 +76,7 @@ export function VerticalBarChart({
           </div>
 
           <div className="relative z-10 flex w-full items-stretch gap-1.5 px-1 sm:gap-2">
-            {categories.map((cat, index) => (
+            {categories.map((cat) => (
               <BarCategoryColumn
                 key={cat.key}
                 category={cat}
@@ -85,13 +85,6 @@ export function VerticalBarChart({
                 isDual={isDual}
                 isPeak={highlightPeak && cat.key === peakKey}
                 showValues={showValues}
-                tooltipAlign={
-                  index === 0
-                    ? "start"
-                    : index === categories.length - 1
-                      ? "end"
-                      : "center"
-                }
               />
             ))}
           </div>
@@ -150,7 +143,6 @@ function BarCategoryColumn({
   isDual,
   isPeak,
   showValues,
-  tooltipAlign,
 }: {
   category: BarChartCategory;
   series: BarChartSeries[];
@@ -158,7 +150,6 @@ function BarCategoryColumn({
   isDual: boolean;
   isPeak: boolean;
   showValues: boolean;
-  tooltipAlign: "start" | "center" | "end";
 }) {
   return (
     <div className="group relative flex min-w-0 flex-1 flex-col items-center">
@@ -212,16 +203,7 @@ function BarCategoryColumn({
         {category.shortLabel ?? category.label}
       </span>
 
-      <div
-        className={cn(
-          "pointer-events-none absolute bottom-12 z-20 hidden rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] whitespace-nowrap text-white shadow-xl group-hover:block",
-          tooltipAlign === "start"
-            ? "left-0"
-            : tooltipAlign === "end"
-              ? "right-0"
-              : "left-1/2 -translate-x-1/2",
-        )}
-      >
+      <div className="pointer-events-none absolute bottom-12 z-20 hidden rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] whitespace-nowrap text-white shadow-xl group-hover:block">
         <span className="block font-bold text-pink-200">{category.label}</span>
         {series.map((item) => {
           const val = item.getValue(category.key);

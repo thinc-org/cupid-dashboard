@@ -1,5 +1,5 @@
 import type { AudienceInsights, BucketCount } from "./audience";
-import { countActiveProfileFilters, enumerateIsoDates } from "./filters";
+import { shiftIsoDate } from "./filters";
 
 export function buildDevMockAudienceInsights(queryString: string): AudienceInsights | null {
   if (process.env.NODE_ENV === "production") return null;
@@ -10,11 +10,22 @@ export function buildDevMockAudienceInsights(queryString: string): AudienceInsig
 
   // Scale mock counts down when cross-filters narrow the cohort so staff can
   // preview both normal distributions and < 5 bucket roll-ups.
-  const filterCount = countActiveProfileFilters(params);
+  let filterCount = 0;
+  for (const key of [
+    "faculty",
+    "year",
+    "gender",
+    "relationshipGoal",
+    "onboarded",
+    "paused",
+    "interest",
+  ]) {
+    if (params.get(key)) filterCount += 1;
+  }
   const scale = Math.max(0.18, 1 - filterCount * 0.22);
   const s = (n: number) => Math.max(1, Math.round(n * scale));
 
-  const dayList = enumerateIsoDates(from, to);
+  const dayList = enumerateDates(from, to, 14);
   const signupsPerDay = dayList.map((date, idx) => ({
     date,
     count: s(14 + ((idx * 7) % 19)),
@@ -168,4 +179,14 @@ export function buildDevMockAudienceInsights(queryString: string): AudienceInsig
       ],
     },
   };
+}
+
+function enumerateDates(from: string, to: string, maxDays: number): string[] {
+  const dates: string[] = [];
+  let cursor = from;
+  while (cursor <= to && dates.length < maxDays) {
+    dates.push(cursor);
+    cursor = shiftIsoDate(cursor, 1);
+  }
+  return dates;
 }

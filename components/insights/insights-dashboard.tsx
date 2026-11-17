@@ -13,6 +13,7 @@ import { GlobalFilterBar } from "./global-filter-bar";
 
 type DashboardTab = "audience" | "daily-decks" | "engagement";
 
+
 const isDev = process.env.NODE_ENV !== "production";
 
 export function InsightsDashboard() {
@@ -42,7 +43,6 @@ export function InsightsDashboard() {
         showDevMockToggle={
           isDev && (activeTab === "audience" || activeTab === "engagement")
         }
-        useDevMock={useDevMock}
         onToggleDevMock={setUseDevMock}
       />
 

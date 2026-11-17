@@ -21,6 +21,13 @@ export async function GET(request: NextRequest) {
       readAudienceInsights(body, {
         singleOnboardingFilter: hasSingleOnboardingFilter(query),
       }),
-    devMock: buildDevMockAudienceInsights,
+    mockHandler: (req, query) => {
+      if (process.env.NODE_ENV === "production") return null;
+      const wantsMock =
+        req.nextUrl.searchParams.get("mock") === "1" ||
+        process.env.CUPID_MOCK_INSIGHTS === "1";
+      if (!wantsMock) return null;
+      return buildDevMockAudienceInsights(query);
+    },
   });
 }
